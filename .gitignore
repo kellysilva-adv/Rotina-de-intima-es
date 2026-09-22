@@ -1,0 +1,55 @@
+# -----------------------------------------------------------------------------
+# SEGREDOS - nunca versionar
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# Certificados digitais em qualquer formato ou pasta
+*.pfx
+*.p12
+*.pem
+*.key
+*.crt
+*.cer
+*.jks
+certificados/
+certificado*
+
+# -----------------------------------------------------------------------------
+# DADOS DE CLIENTES - sigilo profissional (EOAB, art. 34, VII)
+# -----------------------------------------------------------------------------
+relatorio_prazos.json
+raw_movimentacoes.json
+prazos_urgentes_diarios.md
+dados/historico/
+dados/html/
+dados/prazos_urgentes_diarios.json
+logs/
+
+# Os exemplos, sem dado real, ficam versionados:
+!relatorio_prazos.exemplo.json
+!dados/raw_movimentacoes.exemplo.json
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# -----------------------------------------------------------------------------
+# Sistema operacional / editores
+# -----------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp

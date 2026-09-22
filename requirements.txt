@@ -1,0 +1,12 @@
+# Rotina de Intimacoes - Kelly Silva Advocacia
+# Instalacao:  pip install -r requirements.txt
+
+# HTTP + autenticacao mTLS com certificado A1 (.pfx)
+requests>=2.31.0
+requests-pkcs12>=1.25          # injeta o .pfx direto na sessao, sem gravar a chave em disco
+cryptography>=42.0.0           # abre o .pfx para validar titular e data de validade
+urllib3>=2.0.0
+
+# Raspagem da area logada, onde o MNI nao estiver liberado
+beautifulsoup4>=4.12.0
+lxml>=5.0.0                    # parser rapido e tolerante a HTML malformado de portal

@@ -1,79 +1,232 @@
-# Rotina-de-intima-es
-Atue como um Engenheiro de Software e Legaltech Developer sênior. Preciso que você configure uma automação completa de monitoramento processual no meu ambiente local de trabalho.
-Atue como um Engenheiro de Software e Legaltech Developer sênior. Preciso que você configure uma automação completa de monitoramento processual no meu ambiente local de trabalho.
+# Rotina de Intimações
 
-Siga estritamente as diretrizes abaixo para criar a solução:
-ARQUITETURA DO SCRIPT DE VARREDURA:
-   - Crie um script em Python chamado `varredura_tribunais.py`.
-   - O script deve conter uma lista com as seguintes 26 URLs de tribunais fornecidas pelo usuário:
-     * https://pje1g.trf1.jus.br/pje/
-     * https://eproc.jfrj.jus.br/eproc/
-     * https://eproc.jfes.jus.br/
-     * https://pje1g.trf3.jus.br
-     * https://eproc.jfsc.jus.br/eprocV2/
-     * https://eproc.jfpr.jus.br
-     * https://pje1g.trf5.jus.br/pje/
-     * https://eproc1g.trf6.jus.br/
-     * https://projudi.tjgo.jus.br/
-     * https://pje.tjpa.jus.br/pje/
-     * https://pje.tjmg.jus.br/pje
-     * https://pje.tjma.jus.br/pje/
-     * https://esaj.tjsp.jus.br/
-     * https://eproc1g.tjsp.jus.br/eproc/
-     * https://pje.tjmt.jus.br/pje/
-     * https://projudi.tjpr.jus.br/projudi/
-     * https://pje.tjes.jus.br/pje
-     * https://esaj.tjms.jus.br/
-     * https://tjrj.pje.jus.br/1g
-     * https://eproc1g.tjrj.jus.br/
-     * https://pje.tjba.jus.br/
-     * https://pje.cloud.tjpe.jus.br/1g/
-     * https://eproc1.tjto.jus.br/
-     * https://projudi.tjam.jus.br/projudi/
-     * https://pje1g.tjrn.jus.br/pje
-     * https://pje.tjce.jus.br/pje1grau
-   
-LÓGICA DE CAPTURA (ABA ACERVO):
-   - O script deve simular o acesso (ou interagir via MNI/API) para entrar na aba de ACERVO e varrer as Seções Judiciárias de cada Estado.
-   - O foco da captura deve ser rastrear movimentações originadas por: Parte Contrária, Tribunal/Juízo e Ministério Público (MP).
-   - Salve o retorno dessas movimentações brutas em um arquivo local chamado `raw_movimentacoes.json`.
-AGENDAMENTO AUTOMÁTICO (CRON):
-   - Escreva uma rotina (usando a biblioteca 'crontab' ou gerando o comando para o sistema operacional) para agendar a execução desse script TODO DIA ÚTIL, IMPRETERIVELMENTE ÀS 05:00 AM.
-   - Configuração do Cron para dias úteis (segunda a sexta): `0 5 * * 1-5 python3 /caminho/do/seu/projeto/varredura_tribunais.py`
-PROCESSAMENTO E CONSOLIDAÇÃO JURÍDICA:
-   - Crie uma função de pós-processamento onde você (Claude) lerá o arquivo `raw_movimentacoes.json` gerado e aplicará inteligência jurídica para filtrar apenas os atos que geram prazos urgentes/relevantes (ex: intimações, despachos de especificação de provas, decisões liminares, prazos recursais).
-   - Calcule os prazos limites com base nas regras do CPC (dias úteis).
-SAÍDA LÍMPIDA E DIRETA:
-   - Sobreviva ou atualize um arquivo final em Markdown chamado `prazos_urgentes_diarios.md`.
-   - Exiba o resultado exclusivamente em formato de tabela limpa, ordenada pela maior urgência (prazos mais curtos primeiro):
-| N° do Processo | Tribunal / Seção | Movimentação Relevante (Origem) | Tarefa Limpa a Executar | Prazo Limite | Urgência |
-| :--- | :--- | :--- | :--- | :--- | :--- |
+Varredura automática do acervo em **26 tribunais**, todo dia útil às 5h, com
+relatório de prazos urgentes calculados em dias úteis.
 
-Gere o código necessário, configure o ambiente na minha pasta local e me diga quais dependências de Python precisaremos instalar.
+**Kelly Silva Advocacia** — Direito Previdenciário — Minaçu/GO
 
-Prepare o script 'varredura_tribunais.py' para autenticar nos sites utilizando um certificado digital A1 (.pfx) armazenado localmente.
+---
 
-Siga estas diretrizes de segurança:
-1. Não armazene senhas hardcoded no código. Configure o script para ler a senha do certificado através de uma variável de ambiente chamada 'SENHA_CERTIFICADO_OAB' ou usando o módulo 'getpass' para digitação segura no terminal.
-2. Utilize a biblioteca 'requests_pkcs12' para realizar as requisições HTTPS nos endpoints do eproc e PJe que aceitam autenticação por certificado mTLS.
-3. Crie um arquivo '.env.example' indicando onde o usuário deve colocar o caminho do certificado local e a variável da senha, garantindo que o arquivo '.env' real seja incluído no '.gitignore' para nunca ser exposto.
+## O que a rotina faz
 
-Atue como especialista em automação jurídica e Legaltech. Vamos implementar o script 'varredura_tribunais.py' configurado para autenticação mTLS usando o meu certificado digital A1 (.pfx) local.
+1. Autentica nos sistemas com o **certificado digital A1 (.pfx)** por mTLS.
+2. Varre a aba **Acervo** de cada tribunal buscando movimentações novas.
+3. Filtra só o que interessa: **parte contrária**, **juízo/tribunal** e **Ministério Público**.
+4. Grava o bruto em `raw_movimentacoes.json`.
+5. Calcula os prazos em **dias úteis** (CPC, arts. 219, 220 e 224).
+6. Gera `prazos_urgentes_diarios.md` — tabela ordenada do mais urgente ao menos.
 
-Instruções para o desenvolvimento do script:
-CONFIGURAÇÃO DE SEGURANÇA LOCAL:
-   - Use a biblioteca 'requests_pkcs12' para injetar o arquivo 'certificado.pfx' nas requisições HTTP destinadas aos 26 tribunais.
-   - Para proteger a senha do certificado, use o módulo 'getpass' ou configure o script para ler de uma variável de ambiente local (ex: 'SENHA_CERTIFICADO'). Nunca deixe a senha exposta no código-fonte.
-FLUXO DE VARREDURA (ABA ACERVO):
-   - O script deve ler o arquivo local 'relatorio_prazos.json' para obter a lista de processos que eu acompanho.
-   - Para cada tribunal da lista de 26 URLs, o script deve autenticar usando o certificado A1, acessar a área logada de "Acervo" / "Consulta Processual" e capturar as últimas movimentações.
-   - Filtre especificamente as petições ou despachos vindos da Parte Contrária, do Tribunal/Juízo ou do Ministério Público (MP).
-   - Salve as movimentações brutas encontradas em um arquivo temporário 'raw_movimentacoes.json'.
-AGENDAMENTO (CRONJOB DIÁRIO):
-   - Crie uma função secundária no script (ou um comando shell complementar) que adicione esta rotina no Cron do sistema operacional para rodar AUTOMATICAMENTE TODO DIA ÚTIL ÀS 05:00 AM:
-     0 5 * * 1-5 python3 /caminho/do/seu/projeto/varredura_tribunais.py
-ANÁLISE DE PRAZOS E RELATÓRIO LIMPO:
-   - Após a varredura, processe o 'raw_movimentacoes.json'. Identifique termos que geram prazos (intimação, vista, réplica, prazo de X dias).
-   - Calcule a data limite em dias úteis (conforme o CPC).
-   - Gere e salve o arquivo final 'prazos_urgentes_diarios.md' com uma tabela limpa e direta contendo as colunas: | N° do Processo | Tribunal / Seção | Movimentação Relevante (Origem) | Tarefa Limpa a Executar | Prazo Limite | Urgência |.
-Me forneça os comandos para instalar as dependências de Python necessárias (como requests-pkcs12) e o código estruturado.
+---
+
+## Instalação
+
+```bash
+# 1. dependências
+pip install -r requirements.txt
+
+# 2. configuração (o .env NUNCA vai para o git)
+cp .env.example .env
+chmod 600 .env
+# abra o .env e preencha o caminho do .pfx e a senha
+
+# 3. seus processos
+cp relatorio_prazos.exemplo.json relatorio_prazos.json
+# abra e substitua pelos processos reais
+
+# 4. confira que o certificado abre e não está vencido
+python3 varredura_tribunais.py --validar-certificado
+
+# 5. descubra quais tribunais respondem
+python3 varredura_tribunais.py --testar-conectividade
+
+# 6. agende às 5h, de segunda a sexta
+python3 varredura_tribunais.py --instalar-cron
+```
+
+### Dependências
+
+| Pacote | Para quê |
+| :--- | :--- |
+| `requests` | requisições HTTP |
+| `requests-pkcs12` | injeta o `.pfx` na sessão TLS sem gravar a chave privada em disco |
+| `cryptography` | abre o `.pfx` para conferir titular e validade |
+| `beautifulsoup4` + `lxml` | leitura do HTML da área logada, onde o MNI não estiver liberado |
+
+Tudo em uma linha:
+
+```bash
+pip install requests requests-pkcs12 cryptography beautifulsoup4 lxml
+```
+
+---
+
+## Comandos
+
+| Comando | O que faz |
+| :--- | :--- |
+| `python3 varredura_tribunais.py` | varredura completa e relatório |
+| `--simular` | roda com dados fictícios, sem rede — para ver o formato da saída |
+| `--processar` | só recalcula os prazos a partir do `raw_movimentacoes.json` |
+| `--validar-certificado` | mostra titular, emissor e data de validade do `.pfx` |
+| `--testar-conectividade` | testa, um a um, o portal e o endpoint MNI dos 26 tribunais |
+| `--capturar-html <id>` | salva o HTML da área logada para mapear os seletores |
+| `--tribunal trf1` | limita a varredura a um tribunal (repetível) |
+| `--dias 30` | amplia a janela de movimentações buscadas |
+| `--instalar-cron` / `--remover-cron` / `--status-cron` | gerencia o agendamento |
+
+Comece por `--simular`: ele mostra o relatório final sem exigir certificado,
+credencial nem rede.
+
+---
+
+## Agendamento
+
+```
+0 5 * * 1-5   segunda a sexta, às 05:00
+```
+
+Instale com `--instalar-cron`. Para Windows e macOS, veja
+[`docs/AGENDAMENTO.md`](docs/AGENDAMENTO.md).
+
+Uma observação: o cron entende `1-5` como segunda a sexta, não como *dia útil
+forense*. Em feriado nacional ele dispara assim mesmo. É de propósito — a
+varredura roda, captura o que apareceu, e o cálculo de prazos já desconta o
+feriado. Deixar de rodar seria pior que rodar a mais.
+
+---
+
+## Como a captura funciona (e onde ela ainda não funciona)
+
+A rotina tenta duas vias, nesta ordem:
+
+**1. MNI 2.2.2 — o webservice oficial do CNJ.** Contrato SOAP público, o mesmo
+para PJe, eproc, e-SAJ e Projudi. É o caminho estável e é por ele que a rotina
+deve rodar no dia a dia.
+
+Duas coisas precisam ser verdadeiras para o MNI funcionar em um tribunal:
+
+- o **endpoint** cadastrado em `config/tribunais.json` precisa estar certo. Os
+  26 endpoints que deixei cadastrados foram montados pelo padrão de cada
+  sistema e **não foram validados contra os portais reais** — estão marcados
+  com `"mni_verificado": false`. O `--testar-conectividade` diz quais respondem;
+  para os que falharem, peça o WSDL ao tribunal e corrija o cadastro.
+- o tribunal precisa **liberar o MNI para advogado**, com um par
+  usuário/senha (`MNI_ID_CONSULTANTE` / `MNI_SENHA_CONSULTANTE` no `.env`).
+  O certificado autentica a *conexão*; essas credenciais autorizam a *consulta*.
+  Nem todo tribunal libera.
+
+**2. Raspagem da área logada — o plano B.** Onde o MNI não estiver disponível,
+a rotina cai para a leitura do HTML do acervo. Aqui vale a ressalva mais
+importante deste README:
+
+> **Os perfis de raspagem ainda não estão mapeados.** Cada tribunal tem fluxo
+> de login e estrutura de tabela próprios, e vários usam JSF/PrimeFaces com
+> ViewState, que não se reproduz por requisição simples. Em vez de chutar
+> seletor — que devolveria lista vazia e faria você achar que não há prazo
+> quando há —, o adaptador **avisa no relatório** que aquele tribunal não foi
+> varrido, e por quê.
+
+Para mapear um tribunal:
+
+```bash
+python3 varredura_tribunais.py --capturar-html tjgo
+```
+
+O comando autentica com o certificado, salva o HTML em `dados/html/` e lista
+as tabelas candidatas. Com esse HTML em mãos, preencha o perfil do sistema em
+`config/seletores_acervo.json` e mude `"mapeado"` para `true`. O adaptador
+passa a funcionar sem alterar uma linha de código.
+
+---
+
+## Cálculo de prazos
+
+Implementado em `core/prazos.py`, com 32 testes em `tests/test_prazos.py`:
+
+- **CPC, art. 219** — prazos processuais em dias úteis
+- **CPC, art. 224** — exclui o dia do começo, inclui o do vencimento; prorroga
+  quando cai em dia sem expediente
+- **CPC, art. 224, §§ 2º e 3º** — publicação = 1º dia útil após a
+  disponibilização; contagem inicia no 1º dia útil seguinte à publicação
+- **CPC, art. 220** — suspensão de 20/12 a 20/01
+- **Lei 11.419/2006, art. 5º** — intimação eletrônica; sem registro de leitura,
+  presume-se realizada no 10º dia corrido
+- **Lei 5.010/1966, art. 62** — feriados próprios da Justiça Federal
+- Feriados móveis calculados a partir da Páscoa (Carnaval, Sexta-feira da
+  Paixão, Corpus Christi)
+
+**O que o cálculo não sabe:** feriado municipal de comarca, feriado estadual e
+suspensão por portaria do tribunal. Cadastre em `config/feriados.json`. E o
+relatório sempre fecha lembrando: **confira a data no próprio processo antes
+de mandar para a agenda.**
+
+Rodar os testes:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+---
+
+## Consolidação pelo Claude
+
+O script faz o cálculo mecânico. A leitura jurídica — entender o que o juízo
+determinou, separar tarefa de andamento, priorizar por consequência e não só
+por data — está no prompt em
+[`prompt_consolidacao_claude.md`](prompt_consolidacao_claude.md).
+
+---
+
+## Estrutura
+
+```
+varredura_tribunais.py          script principal (CLI)
+core/
+  modelo.py                     Processo, Movimentacao, PrazoCalculado
+  prazos.py                     calendário forense e contagem em dias úteis
+  classificador.py              origem da movimentação, tarefa e prazo
+  relatorio.py                  geração do Markdown
+  certificado.py                carga do .pfx e da senha
+  sessao.py                     sessão HTTP com mTLS
+  cron.py                       agendamento
+  adaptadores/
+    mni.py                      cliente SOAP do MNI 2.2.2 (CNJ)
+    html.py                     raspagem da área logada, dirigida por config
+config/
+  tribunais.json                os 26 tribunais
+  regras_prazos.json            regras de prazo e detecção de origem
+  feriados.json                 feriados locais (você cadastra)
+  seletores_acervo.json         perfis de raspagem por sistema
+tests/test_prazos.py            testes do cálculo
+```
+
+### Arquivos de dados
+
+| Arquivo | Papel |
+| :--- | :--- |
+| `relatorio_prazos.json` | **entrada** — processos acompanhados |
+| `raw_movimentacoes.json` | **intermediário** — movimentações brutas capturadas |
+| `prazos_urgentes_diarios.md` | **saída** — a tabela de prazos |
+| `dados/prazos_urgentes_diarios.json` | mesma saída em JSON, para o Claude |
+| `dados/historico/` | cópia datada de cada relatório |
+
+---
+
+## Segurança e sigilo
+
+- Senha lida de variável de ambiente ou digitada com `getpass` — **nunca** no código.
+- `CredencialCertificado` mascara a senha em `repr`, `str` e traceback, para não
+  vazar em log.
+- `.gitignore` bloqueia `.env`, `*.pfx`, `*.p12`, `*.pem`, `*.key` e todos os
+  arquivos com dado de cliente (`relatorio_prazos.json`, `raw_movimentacoes.json`,
+  `prazos_urgentes_diarios.md`, `dados/historico/`, `logs/`).
+- A sessão respeita intervalo mínimo entre requisições ao mesmo tribunal.
+  Varredura sem pausa em portal de tribunal vira bloqueio de IP — e, com
+  certificado, bloqueio do certificado.
+
+Só versione os arquivos `.exemplo.json`. Os reais têm dado de cliente e estão
+cobertos pelo sigilo profissional (EOAB, art. 34, VII).
+
+**Se a senha do certificado ficar no `.env` para o cron rodar sozinho**, o
+arquivo dá acesso ao seu certificado digital. Mantenha `chmod 600` e não
+sincronize a pasta do projeto com nuvem pública.

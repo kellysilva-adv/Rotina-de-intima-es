@@ -1,0 +1,467 @@
+{
+  "_comentario": [
+    "Regras de classificacao juridica das movimentacoes.",
+    "",
+    "A varredura normaliza o texto da movimentacao (minusculas, sem acento) e",
+    "procura os 'padroes' como substring. Vence a regra de maior 'prioridade'.",
+    "Um prazo escrito expressamente na movimentacao ('prazo de 10 dias') SEMPRE",
+    "prevalece sobre o numero de dias da regra.",
+    "",
+    "Campos:",
+    "  padroes        - trechos procurados no texto ja normalizado (sem acento)",
+    "  origem_exigida - se preenchido, a regra so vale para aquelas origens",
+    "  dias/contagem  - prazo padrao ('uteis' ou 'corridos')",
+    "  termo          - 'dje' (CPC 224 par. 2o/3o) ou 'eletronica' (Lei 11.419 art. 5o)",
+    "  confianca      - alta | media | baixa -> sai na coluna de conferencia",
+    "",
+    "Edite a vontade: a Kelly conhece os despachos padrao de cada vara melhor",
+    "do que qualquer regra generica."
+  ],
+  "urgencia": {
+    "critica_ate_dias_uteis": 1,
+    "alta_ate_dias_uteis": 3,
+    "media_ate_dias_uteis": 7
+  },
+  "origens": {
+    "Ministerio Publico": [
+      "ministerio publico",
+      "min. publico",
+      " mpf",
+      " mpe",
+      "mpf ",
+      "mpe ",
+      "procuradoria de justica",
+      "procuradoria-geral de justica",
+      "parecer ministerial",
+      "custos legis",
+      "fiscal da lei",
+      "promotor",
+      "procurador de justica",
+      "vista ao mp",
+      "parecer do mp"
+    ],
+    "Parte Contraria": [
+      "inss",
+      "instituto nacional do seguro social",
+      "autarquia previdenciaria",
+      "procuradoria-geral federal",
+      "procuradoria geral federal",
+      " pgf",
+      "advocacia-geral da uniao",
+      " agu",
+      "minacuprev",
+      "municipio de",
+      "fazenda publica",
+      "parte requerida",
+      "parte re ",
+      "polo passivo",
+      "contestacao",
+      "impugnacao ao cumprimento",
+      "contrarrazoes do reu",
+      "peticao da parte adversa",
+      "recurso do inss",
+      "apelacao do inss",
+      "embargos do inss",
+      "manifestacao do requerido",
+      "proposta de acordo"
+    ],
+    "Tribunal / Juizo": [
+      "despacho",
+      "decisao",
+      "sentenca",
+      "ato ordinatorio",
+      "expedicao de",
+      "intimacao",
+      "certidao",
+      "conclusao para",
+      "juntada de laudo",
+      "designada",
+      "designacao",
+      "redistribuicao",
+      "remessa",
+      "publicacao",
+      "acordao",
+      "carta precatoria",
+      "mandado",
+      "oficio",
+      "alvara",
+      "requisicao de pequeno valor",
+      "precatorio",
+      "rpv",
+      "julgamento",
+      "manifeste-se",
+      "manifestem-se",
+      "intime-se",
+      "intimem-se",
+      "cite-se",
+      "cumpra-se",
+      "abra-se vista",
+      "diga a parte autora",
+      "esclareca",
+      "apresente",
+      "junte",
+      "comprove",
+      "especifiquem",
+      "sob pena de"
+    ]
+  },
+  "regras": [
+    {
+      "id": "replica_contestacao",
+      "padroes": [
+        "contestacao",
+        "contestou",
+        "defesa do inss"
+      ],
+      "tarefa": "Apresentar REPLICA a contestacao",
+      "dias": 15,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, arts. 350 e 351",
+      "prioridade": 85,
+      "confianca": "alta"
+    },
+    {
+      "id": "manifestacao_laudo_medico",
+      "padroes": [
+        "laudo pericial",
+        "laudo medico",
+        "laudo do perito",
+        "pericia realizada",
+        "perícia realizada",
+        "laudo da pericia",
+        "juntada de laudo pericial"
+      ],
+      "tarefa": "Manifestar sobre o LAUDO PERICIAL MEDICO (impugnar ou concordar)",
+      "dias": 15,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, art. 477, par. 1o",
+      "prioridade": 87,
+      "confianca": "alta"
+    },
+    {
+      "id": "manifestacao_laudo_social",
+      "padroes": [
+        "laudo social",
+        "estudo social",
+        "avaliacao social",
+        "parecer social",
+        "pericia social",
+        "perícia social",
+        "assistente social"
+      ],
+      "tarefa": "Manifestar sobre o LAUDO SOCIAL (BPC/LOAS)",
+      "dias": 15,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, art. 477, par. 1o",
+      "prioridade": 90,
+      "confianca": "alta"
+    },
+    {
+      "id": "recurso_inominado",
+      "padroes": [
+        "sentenca de improcedencia",
+        "julgo improcedente",
+        "sentenca - juizado",
+        "sentenca no juizado",
+        "jef"
+      ],
+      "tarefa": "Avaliar e interpor RECURSO INOMINADO (Turma Recursal)",
+      "dias": 10,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "Lei 9.099/95, art. 42 (JEF - Lei 10.259/01)",
+      "prioridade": 92,
+      "confianca": "media"
+    },
+    {
+      "id": "sentenca_generica",
+      "padroes": [
+        "sentenca",
+        "julgo procedente",
+        "julgo improcedente",
+        "extincao do processo",
+        "julgo extinto"
+      ],
+      "tarefa": "Analisar SENTENCA e decidir sobre recurso",
+      "dias": 15,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, art. 1.003, par. 5o (apelacao)",
+      "prioridade": 80,
+      "confianca": "media"
+    },
+    {
+      "id": "embargos_declaracao",
+      "padroes": [
+        "embargos de declaracao",
+        "opostos embargos",
+        "omissao",
+        "contradicao",
+        "obscuridade"
+      ],
+      "tarefa": "Analisar EMBARGOS DE DECLARACAO (opor ou contrarrazoar)",
+      "dias": 5,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, arts. 1.023 e 1.023, par. 2o",
+      "prioridade": 95,
+      "confianca": "alta"
+    },
+    {
+      "id": "agravo_instrumento",
+      "padroes": [
+        "decisao interlocutoria",
+        "indeferiu a tutela",
+        "indefiro a tutela",
+        "agravo de instrumento"
+      ],
+      "tarefa": "Avaliar AGRAVO DE INSTRUMENTO contra a decisao",
+      "dias": 15,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, art. 1.003, par. 5o c/c art. 1.015",
+      "prioridade": 90,
+      "confianca": "media"
+    },
+    {
+      "id": "emenda_inicial",
+      "padroes": [
+        "emende a inicial",
+        "emenda a inicial",
+        "emendar a inicial",
+        "art. 321",
+        "art 321",
+        "sane o vicio",
+        "regularize"
+      ],
+      "tarefa": "EMENDAR A INICIAL / sanar o vicio apontado - risco de indeferimento",
+      "dias": 15,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, art. 321",
+      "prioridade": 96,
+      "confianca": "alta"
+    },
+    {
+      "id": "especificar_provas",
+      "padroes": [
+        "especifiquem as provas",
+        "especificar provas",
+        "provas que pretendem produzir",
+        "especifiquem provas"
+      ],
+      "tarefa": "Especificar as PROVAS a produzir, justificando a pertinencia",
+      "dias": 5,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, art. 218, par. 3o (salvo prazo do despacho)",
+      "prioridade": 84,
+      "confianca": "media"
+    },
+    {
+      "id": "contrarrazoes",
+      "padroes": [
+        "contrarrazoes",
+        "para responder ao recurso",
+        "apresentar resposta ao recurso"
+      ],
+      "tarefa": "Apresentar CONTRARRAZOES ao recurso",
+      "dias": 15,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, art. 1.010, par. 1o",
+      "prioridade": 87,
+      "confianca": "alta"
+    },
+    {
+      "id": "recurso_inss",
+      "padroes": [
+        "recurso do inss",
+        "apelacao do inss",
+        "apelou",
+        "recurso inominado do inss",
+        "interpos recurso"
+      ],
+      "tarefa": "Recurso da parte contraria - preparar CONTRARRAZOES",
+      "dias": 15,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, art. 1.010, par. 1o",
+      "prioridade": 89,
+      "confianca": "alta"
+    },
+    {
+      "id": "proposta_acordo",
+      "padroes": [
+        "proposta de acordo",
+        "proposta de conciliacao",
+        "acordo ofertado",
+        "cecoj",
+        "mutirao de conciliacao"
+      ],
+      "tarefa": "Analisar PROPOSTA DE ACORDO e colher a decisao do cliente",
+      "dias": 15,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "Prazo do despacho - CONFERIR no ato",
+      "prioridade": 86,
+      "confianca": "media"
+    },
+    {
+      "id": "pericia_designada",
+      "padroes": [
+        "pericia designada",
+        "perícia designada",
+        "designada pericia",
+        "data da pericia",
+        "agendamento de pericia",
+        "avaliacao medica designada"
+      ],
+      "tarefa": "PERICIA MARCADA - avisar o cliente e preparar a orientacao previa",
+      "dias": 5,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "Sem prazo processual - urgencia operacional",
+      "prioridade": 93,
+      "confianca": "media"
+    },
+    {
+      "id": "audiencia_designada",
+      "padroes": [
+        "audiencia designada",
+        "designada audiencia",
+        "audiencia de instrucao",
+        "audiencia de conciliacao"
+      ],
+      "tarefa": "AUDIENCIA MARCADA - intimar cliente e testemunhas, preparar rol",
+      "dias": 5,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "Rol de testemunhas: CPC, art. 357, par. 4o",
+      "prioridade": 93,
+      "confianca": "media"
+    },
+    {
+      "id": "manifestacao_documentos",
+      "padroes": [
+        "juntada de documento",
+        "documentos juntados",
+        "manifestar sobre os documentos",
+        "vista dos documentos"
+      ],
+      "tarefa": "Manifestar sobre os DOCUMENTOS juntados",
+      "dias": 15,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, art. 437, par. 1o",
+      "prioridade": 70,
+      "confianca": "media"
+    },
+    {
+      "id": "parecer_mp",
+      "padroes": [
+        "parecer do ministerio publico",
+        "parecer ministerial",
+        "manifestacao do ministerio publico",
+        "vista ao ministerio publico"
+      ],
+      "tarefa": "Analisar PARECER DO MP e manifestar se contrario ao cliente",
+      "dias": 15,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, art. 179, I",
+      "prioridade": 82,
+      "confianca": "media"
+    },
+    {
+      "id": "custas_preparo",
+      "padroes": [
+        "recolher as custas",
+        "recolhimento de custas",
+        "preparo recursal",
+        "comprove o recolhimento",
+        "guia de custas"
+      ],
+      "tarefa": "RECOLHER CUSTAS/PREPARO e comprovar nos autos - risco de desercao",
+      "dias": 5,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, art. 1.007 / prazo do despacho",
+      "prioridade": 94,
+      "confianca": "media"
+    },
+    {
+      "id": "rpv_precatorio",
+      "padroes": [
+        "requisicao de pequeno valor",
+        " rpv",
+        "rpv ",
+        "precatorio",
+        "dados bancarios",
+        "expedicao de requisitorio"
+      ],
+      "tarefa": "Conferir/informar DADOS BANCARIOS e acompanhar a requisicao",
+      "dias": 5,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "Prazo do despacho - CONFERIR no ato",
+      "prioridade": 75,
+      "confianca": "media"
+    },
+    {
+      "id": "cumprimento_sentenca",
+      "padroes": [
+        "cumprimento de sentenca",
+        "execucao invertida",
+        "calculos apresentados",
+        "impugnacao aos calculos"
+      ],
+      "tarefa": "Conferir CALCULOS / andamento do cumprimento de sentenca",
+      "dias": 15,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, art. 525 / art. 535",
+      "prioridade": 78,
+      "confianca": "media"
+    },
+    {
+      "id": "vista_generica",
+      "padroes": [
+        "vista a parte autora",
+        "vista ao autor",
+        "dar vista",
+        "abra-se vista",
+        "com vista"
+      ],
+      "tarefa": "Dar VISTA - analisar os autos e manifestar",
+      "dias": 5,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, art. 218, par. 3o (salvo prazo do despacho)",
+      "prioridade": 60,
+      "confianca": "baixa"
+    },
+    {
+      "id": "intimacao_generica",
+      "padroes": [
+        "intimacao",
+        "intimado",
+        "intime-se",
+        "manifeste-se",
+        "despacho",
+        "decisao",
+        "ato ordinatorio"
+      ],
+      "tarefa": "CONFERIR o ato e cumprir a determinacao do juizo",
+      "dias": 5,
+      "contagem": "uteis",
+      "termo": "eletronica",
+      "fundamento": "CPC, art. 218, par. 3o (prazo supletivo)",
+      "prioridade": 30,
+      "confianca": "baixa"
+    }
+  ]
+}

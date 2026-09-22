@@ -1,0 +1,28 @@
+{
+  "_comentario": [
+    "Feriados que o calculo automatico NAO tem como saber.",
+    "",
+    "O script ja calcula sozinho: feriados nacionais fixos, os moveis derivados",
+    "da Pascoa (Carnaval, Sexta-feira da Paixao, Corpus Christi), os feriados",
+    "forenses da Justica Federal (Lei 5.010/66, art. 62) e a suspensao de",
+    "prazos de 20/12 a 20/01 (CPC, art. 220).",
+    "",
+    "O QUE VOCE PRECISA CADASTRAR AQUI:",
+    "  - feriado municipal da comarca (padroeiro, aniversario da cidade)",
+    "  - feriado estadual",
+    "  - suspensao de expediente por portaria do tribunal",
+    "  - ponto facultativo com expediente suspenso",
+    "",
+    "Formato das datas: AAAA-MM-DD.",
+    "'globais' vale para todos os tribunais; 'por_tribunal' usa o id do cadastro."
+  ],
+  "globais": [],
+  "por_tribunal": {
+    "tjgo": [],
+    "trf1": []
+  },
+  "_exemplo_preenchido": {
+    "tjgo": ["2026-05-01", "2026-10-24"],
+    "_nota": "24/10 e o aniversario de Minacu - confirme na portaria do TJGO do ano."
+  }
+}

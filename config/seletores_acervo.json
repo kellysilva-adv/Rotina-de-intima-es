@@ -1,0 +1,103 @@
+{
+  "_comentario": [
+    "Perfis de raspagem da aba ACERVO, um por sistema processual.",
+    "",
+    "ENQUANTO 'mapeado' FOR false, O ADAPTADOR NAO RASPA - ele reporta no",
+    "diagnostico que o perfil falta. Isso e proposital: seletor chutado devolve",
+    "lista vazia e a Kelly acha que nao tem prazo, quando na verdade tem.",
+    "",
+    "Para mapear um sistema:",
+    "  1. python3 varredura_tribunais.py --capturar-html <id_do_tribunal>",
+    "  2. abra o HTML salvo em dados/html/ e localize a tabela do acervo",
+    "  3. preencha 'login.caminho', 'acervo.caminho', 'acervo.linha' e os campos",
+    "  4. mude 'mapeado' para true",
+    "",
+    "Um perfil pode ser sobrescrito por tribunal: basta criar uma chave com o",
+    "id do tribunal (ex.: \"tjgo\") em vez do nome do sistema.",
+    "",
+    "Os 'caminho' abaixo sao pontos de partida plausiveis de cada sistema e",
+    "PRECISAM SER CONFERIDOS - nenhum deles foi validado contra o portal real."
+  ],
+  "perfis": {
+    "pje": {
+      "mapeado": false,
+      "login": {
+        "caminho": "login.seam",
+        "marcador_sucesso": "painel"
+      },
+      "acervo": {
+        "caminho": "Painel/painel_usuario/advogado.seam",
+        "linha": "",
+        "campos": {
+          "processo": "",
+          "orgao": "",
+          "data": "",
+          "movimentacao": "",
+          "complemento": ""
+        }
+      },
+      "caminhos_debug": ["login.seam", "Painel/painel_usuario/advogado.seam"],
+      "apenas_acompanhados": true
+    },
+    "eproc": {
+      "mapeado": false,
+      "login": {
+        "caminho": "externo_controlador.php?acao=principal",
+        "marcador_sucesso": "painel"
+      },
+      "acervo": {
+        "caminho": "controlador.php?acao=principal",
+        "linha": "",
+        "campos": {
+          "processo": "",
+          "orgao": "",
+          "data": "",
+          "movimentacao": "",
+          "complemento": ""
+        }
+      },
+      "caminhos_debug": ["externo_controlador.php?acao=principal", "controlador.php?acao=principal"],
+      "apenas_acompanhados": true
+    },
+    "esaj": {
+      "mapeado": false,
+      "login": {
+        "caminho": "sajcas/login",
+        "marcador_sucesso": "esaj"
+      },
+      "acervo": {
+        "caminho": "cpopg/open.do",
+        "linha": "",
+        "campos": {
+          "processo": "",
+          "orgao": "",
+          "data": "",
+          "movimentacao": "",
+          "complemento": ""
+        }
+      },
+      "caminhos_debug": ["sajcas/login", "cpopg/open.do"],
+      "apenas_acompanhados": true
+    },
+    "projudi": {
+      "mapeado": false,
+      "login": {
+        "caminho": "usuario/logon.do",
+        "marcador_sucesso": "projudi"
+      },
+      "acervo": {
+        "caminho": "processo/buscaProcessosQualquerInstancia.do",
+        "linha": "",
+        "campos": {
+          "processo": "",
+          "orgao": "",
+          "data": "",
+          "movimentacao": "",
+          "complemento": ""
+        }
+      },
+      "caminhos_debug": ["usuario/logon.do", "processo/buscaProcessosQualquerInstancia.do"],
+      "apenas_acompanhados": true
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "_comentario": [
+    "Lista de processos que o escritorio acompanha.",
+    "",
+    "COPIE PARA relatorio_prazos.json E PREENCHA COM OS SEUS PROCESSOS:",
+    "    cp relatorio_prazos.exemplo.json relatorio_prazos.json",
+    "",
+    "O arquivo real fica no .gitignore - tem dado de cliente e nao pode ser",
+    "versionado (sigilo profissional, EOAB art. 34, VII).",
+    "",
+    "Campos obrigatorios: 'numero' (CNJ) e 'tribunal_id' (id em config/tribunais.json).",
+    "Os demais sao opcionais e so enriquecem o relatorio."
+  ],
+  "processos": [
+    {
+      "numero": "5001234-56.2024.4.01.3600",
+      "tribunal_id": "trf1",
+      "cliente": "Maria das Dores Exemplo",
+      "orgao_julgador": "1a Vara Federal de Minacu/GO",
+      "classe": "Procedimento Comum Civel",
+      "beneficio": "B-31 Auxilio por incapacidade temporaria",
+      "observacao": "Aguardando pericia medica"
+    },
+    {
+      "numero": "0011223-34.2024.8.09.0101",
+      "tribunal_id": "tjgo",
+      "cliente": "Joao Batista Exemplo",
+      "orgao_julgador": "Comarca de Minacu/GO",
+      "classe": "Procedimento Comum",
+      "beneficio": "MINACUPREV - Aposentadoria por invalidez",
+      "observacao": "RPPS municipal"
+    },
+    {
+      "numero": "5009876-54.2025.4.01.3600",
+      "tribunal_id": "trf1",
+      "cliente": "Ana Lucia Exemplo",
+      "orgao_julgador": "JEF de Uruacu/GO",
+      "classe": "Procedimento do Juizado Especial Civel",
+      "beneficio": "BPC/LOAS - especie 87",
+      "observacao": "Laudo social pendente"
+    }
+  ]
+}
