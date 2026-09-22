@@ -20,6 +20,25 @@ relatório de prazos urgentes calculados em dias úteis.
 
 ---
 
+## Windows: começando do zero
+
+Se você ainda não tem o projeto na máquina:
+
+1. Baixe o ZIP do branch em
+   `https://github.com/kellysilva-adv/Rotina-de-intima-es/archive/refs/heads/claude/court-monitoring-automation-pkc122.zip`
+2. Extraia onde quiser (ex.: `Desktop\Claude CODE\`)
+3. Entre na pasta e dê **dois cliques em `testar.bat`**
+
+O `testar.bat` acha o Python, instala o que falta e roda o teste de
+conectividade dos 26 tribunais. Não precisa de certificado, senha nem
+linha de comando.
+
+Se der "Python nao encontrado", instale de
+[python.org/downloads](https://www.python.org/downloads/) marcando
+**"Add Python to PATH"** na primeira tela do instalador.
+
+---
+
 ## Instalação
 
 ```bash
