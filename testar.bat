@@ -78,6 +78,7 @@ echo Leva de 1 a 3 minutos. Pode deixar rodando.
 echo.
 
 %PY% varredura_tribunais.py --testar-conectividade
+if errorlevel 1 goto :deu_erro
 
 echo.
 echo ===========================================================
@@ -87,6 +88,19 @@ echo ===========================================================
 echo.
 pause
 exit /b 0
+
+:deu_erro
+echo.
+echo ===========================================================
+echo   O teste NAO terminou. Nenhum resultado foi salvo.
+echo.
+echo   Copie a mensagem de erro acima e mande para o Claude.
+echo   Se aparecer "ModuleNotFoundError", baixe o ZIP de novo:
+echo   algum arquivo do projeto pode nao ter vindo.
+echo ===========================================================
+echo.
+pause
+exit /b 1
 
 
 rem ===========================================================================

@@ -5,7 +5,13 @@
 .env.*
 !.env.example
 
-# Certificados digitais em qualquer formato ou pasta
+# Certificados digitais em qualquer formato ou pasta.
+#
+# ATENCAO: nao volte a por um padrao amplo por NOME aqui, do tipo
+# 'certificado*'. Esse padrao casa em qualquer nivel de pasta e ja engoliu o
+# core/certificado.py - o modulo que le o .pfx - fazendo o projeto ser
+# publicado sem ele. As extensoes abaixo ja cobrem todo certificado de
+# verdade, e nao pegam codigo-fonte junto.
 *.pfx
 *.p12
 *.pem
@@ -14,7 +20,6 @@
 *.cer
 *.jks
 certificados/
-certificado*
 
 # -----------------------------------------------------------------------------
 # DADOS DE CLIENTES - sigilo profissional (EOAB, art. 34, VII)
