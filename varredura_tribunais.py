@@ -32,7 +32,12 @@ RAIZ = Path(__file__).resolve().parent
 sys.path.insert(0, str(RAIZ))
 
 from core import cron as agendador
-from core.adaptadores import ADAPTADORES_HTML, AdaptadorMNI, ResultadoVarredura
+from core.adaptadores import (
+    ADAPTADORES_HTML,
+    AdaptadorDataJud,
+    AdaptadorMNI,
+    ResultadoVarredura,
+)
 from core.certificado import ErroCertificado, carregar_dotenv, obter_credencial, validar_certificado
 from core.classificador import Classificador, ordenar_por_urgencia
 from core.modelo import Movimentacao, Processo, normalizar_cnj
@@ -133,29 +138,63 @@ def varrer_tribunal(
     sessao: SessaoTribunal,
     credenciais_mni: tuple[str, str],
     dias: int,
+    chave_datajud: str = "",
+    fonte_forcada: str = "",
 ) -> ResultadoVarredura:
-    """Tenta o MNI primeiro; se nao vier nada util, cai para a raspagem."""
-    id_consultante, senha_consultante = credenciais_mni
+    """Tenta as tres vias, da mais rica para a mais disponivel.
 
-    mni = AdaptadorMNI(tribunal, sessao, id_consultante, senha_consultante)
-    resultado = mni.varrer(processos, desde_dias=dias)
-    if resultado.sucesso and resultado.movimentacoes:
-        return resultado
+    1. MNI    - traz o inteiro teor dos movimentos, mas exige credencial que
+                nem todo tribunal libera para advogado.
+    2. DataJud- nao exige login nenhum e funciona nos 26 tribunais, mas so traz
+                metadados: diz QUE houve a movimentacao, nao o que ela diz.
+    3. Raspagem da area logada - ultimo recurso, e so onde o perfil do sistema
+                ja estiver mapeado.
+    """
+    tentativas: list[str] = []
 
-    motivo_mni = resultado.mensagem
-    classe = ADAPTADORES_HTML.get(tribunal["sistema"])
-    if classe is None:
-        return resultado
+    def via_mni() -> ResultadoVarredura:
+        id_consultante, senha_consultante = credenciais_mni
+        return AdaptadorMNI(tribunal, sessao, id_consultante, senha_consultante).varrer(
+            processos, desde_dias=dias
+        )
 
-    log.info("[%s] MNI sem retorno util (%s). Tentando raspagem.", tribunal["id"], motivo_mni)
-    alternativo = classe(tribunal, sessao, caminho_perfis=CONFIG_SELETORES)
-    resultado_html = alternativo.varrer(processos, desde_dias=dias)
-    resultado_html.mensagem = f"{resultado_html.mensagem} (MNI antes: {motivo_mni})"
+    def via_datajud() -> ResultadoVarredura:
+        return AdaptadorDataJud(tribunal, sessao, chave_datajud).varrer(
+            processos, desde_dias=dias
+        )
 
-    # Se nem o MNI nem a raspagem trouxeram nada, devolve o que tiver conteudo.
-    if resultado_html.movimentacoes or not resultado.movimentacoes:
-        return resultado_html
-    return resultado
+    def via_html() -> ResultadoVarredura:
+        classe = ADAPTADORES_HTML.get(tribunal["sistema"])
+        if classe is None:
+            vazio = ResultadoVarredura(
+                tribunal_id=tribunal["id"], tribunal_nome=tribunal["nome"],
+                sistema=tribunal["sistema"], fonte="html",
+                mensagem=f"Sistema '{tribunal['sistema']}' sem adaptador de raspagem.",
+            )
+            return vazio
+        return classe(tribunal, sessao, caminho_perfis=CONFIG_SELETORES).varrer(
+            processos, desde_dias=dias
+        )
+
+    vias = {"mni": via_mni, "datajud": via_datajud, "html": via_html}
+
+    if fonte_forcada:
+        return vias[fonte_forcada]()
+
+    ultimo: ResultadoVarredura | None = None
+    for nome, via in vias.items():
+        resultado = via()
+        ultimo = resultado
+        if resultado.sucesso and resultado.movimentacoes:
+            if tentativas:
+                resultado.mensagem += f" (antes: {'; '.join(tentativas)})"
+            return resultado
+        tentativas.append(f"{nome}: {resultado.mensagem}")
+        log.info("[%s] %s sem retorno util - %s", tribunal["id"], nome, resultado.mensagem)
+
+    assert ultimo is not None
+    ultimo.mensagem = "; ".join(tentativas)
+    return ultimo
 
 
 def executar_varredura(args: argparse.Namespace) -> tuple[list[Movimentacao], list[dict[str, Any]]]:
@@ -181,7 +220,20 @@ def executar_varredura(args: argparse.Namespace) -> tuple[list[Movimentacao], li
             "webservice sera pulada em todos os tribunais."
         )
 
-    credencial = obter_credencial(RAIZ, args.certificado, permitir_prompt=not args.silencioso)
+    chave_datajud = ambiente.get("DATAJUD_API_KEY", "")
+
+    # Sem certificado nao ha MNI nem raspagem, mas o DataJud continua de pe -
+    # ele nao usa credencial nenhuma. Entao falta de certificado degrada a
+    # varredura, nao a impede.
+    credencial = None
+    try:
+        credencial = obter_credencial(RAIZ, args.certificado, permitir_prompt=not args.silencioso)
+    except ErroCertificado as exc:
+        if args.fonte == "datajud":
+            log.info("Sem certificado (%s) - seguindo so pelo DataJud, que dispensa login.", exc)
+        else:
+            raise
+
     movimentacoes: list[Movimentacao] = []
     diagnostico: list[dict[str, Any]] = []
 
@@ -190,7 +242,10 @@ def executar_varredura(args: argparse.Namespace) -> tuple[list[Movimentacao], li
             do_tribunal = [p for p in todos_processos if p.tribunal_id == tribunal["id"]]
             log.info("[%2d/%d] %s - %d processos", i, len(tribunais), tribunal["id"], len(do_tribunal))
             try:
-                resultado = varrer_tribunal(tribunal, do_tribunal, sessao, credenciais_mni, args.dias)
+                resultado = varrer_tribunal(
+                    tribunal, do_tribunal, sessao, credenciais_mni, args.dias,
+                    chave_datajud=chave_datajud, fonte_forcada=args.fonte,
+                )
             except Exception as exc:
                 log.exception("[%s] erro nao tratado na varredura", tribunal["id"])
                 resultado = ResultadoVarredura(
@@ -307,31 +362,45 @@ def cmd_testar_conectividade(args: argparse.Namespace) -> int:
     except ErroCertificado as exc:
         print(f"Sem certificado ({exc}). Testando apenas o alcance publico dos portais.\n")
 
-    largura = max(len(t["id"]) for t in tribunais)
-    ok_portal = ok_mni = 0
+    import os
+    ambiente = dict(carregar_dotenv(RAIZ / ".env"))
+    ambiente.update({k: v for k, v in os.environ.items() if v})
+    chave_datajud = ambiente.get("DATAJUD_API_KEY", "")
 
-    print(f"\n{'TRIBUNAL'.ljust(largura)}  {'PORTAL':<34}  ENDPOINT MNI")
-    print("-" * (largura + 76))
+    largura = max(len(t["id"]) for t in tribunais)
+    ok_portal = ok_mni = ok_datajud = 0
+
+    print(f"\n{'TRIBUNAL'.ljust(largura)}  {'DATAJUD (sem login)':<36}  "
+          f"{'MNI (login/senha)':<30}  PORTAL")
+    print("-" * (largura + 92))
 
     with SessaoTribunal(credencial, timeout=args.timeout) as sessao:
         for tribunal in tribunais:
+            dj_ok, diag_dj = AdaptadorDataJud(tribunal, sessao, chave_datajud).testar()
+            ok_datajud += dj_ok
+            mni_ok, diag_mni = AdaptadorMNI(tribunal, sessao).testar_endpoint()
+            ok_mni += mni_ok
             alcancavel, diag_portal = sessao.testar(tribunal["url_base"])
             ok_portal += alcancavel
-            mni = AdaptadorMNI(tribunal, sessao)
-            mni_ok, diag_mni = mni.testar_endpoint()
-            ok_mni += mni_ok
-            marca_p = "OK  " if alcancavel else "FALHA"
-            marca_m = "OK  " if mni_ok else "FALHA"
-            print(f"{tribunal['id'].ljust(largura)}  {marca_p} {diag_portal[:28]:<28}  "
-                  f"{marca_m} {diag_mni[:46]}")
+            print(
+                f"{tribunal['id'].ljust(largura)}  "
+                f"{'OK  ' if dj_ok else 'FALHA'} {diag_dj[:30]:<30}  "
+                f"{'OK  ' if mni_ok else 'FALHA'} {diag_mni[:24]:<24}  "
+                f"{'OK' if alcancavel else 'FALHA'}"
+            )
 
     total = len(tribunais)
-    print("-" * (largura + 76))
-    print(f"Portais acessiveis: {ok_portal}/{total} | Endpoints MNI validos: {ok_mni}/{total}")
+    print("-" * (largura + 92))
+    print(f"DataJud: {ok_datajud}/{total}  |  MNI: {ok_mni}/{total}  |  Portais: {ok_portal}/{total}")
     print(
-        "\nOs endpoints MNI do cadastro foram montados pelo padrao de cada sistema e "
-        "NAO sao oficiais.\nOnde deu FALHA, peca o WSDL correto ao tribunal (corregedoria "
-        "ou suporte do sistema)\ne corrija 'endpoint_mni' em config/tribunais.json."
+        "\nCOMO LER ESTE RESULTADO"
+        "\n  DataJud OK  -> esse tribunal ja pode ser varrido HOJE, sem certificado e"
+        "\n                 sem senha. E a via que resolve o problema de login."
+        "\n  MNI FALHA   -> esperado: os endpoints do cadastro foram montados pelo padrao"
+        "\n                 de cada sistema e nao sao oficiais. Peca o WSDL ao tribunal e"
+        "\n                 corrija 'endpoint_mni' em config/tribunais.json."
+        "\n  Portal OK   -> o site responde, o que nao significa que o login automatico"
+        "\n                 funcione: varios exigem assinatura por desafio (PjeOffice)."
     )
     return 0
 
@@ -430,6 +499,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dias", type=int, default=15, help="janela de movimentacoes, em dias (padrao: 15)")
     p.add_argument("--timeout", type=int, default=45, help="timeout por requisicao, em segundos")
     p.add_argument("--silencioso", action="store_true", help="modo cron: sem prompt e sem saida no terminal")
+    p.add_argument("--fonte", choices=("mni", "datajud", "html"), default="",
+                   help="forca uma unica via de captura (padrao: tenta as tres em ordem)")
 
     g = p.add_mutually_exclusive_group()
     g.add_argument("--processar", action="store_true", help="so reprocessa raw_movimentacoes.json")

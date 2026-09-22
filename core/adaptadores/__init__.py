@@ -1,6 +1,7 @@
 """Adaptadores de captura por sistema processual."""
 
 from core.adaptadores.base import AdaptadorBase, ResultadoVarredura
+from core.adaptadores.datajud import AdaptadorDataJud
 from core.adaptadores.mni import AdaptadorMNI
 from core.adaptadores.html import (
     AdaptadorPJe,
@@ -17,7 +18,7 @@ ADAPTADORES_HTML = {
 }
 
 __all__ = [
-    "AdaptadorBase", "ResultadoVarredura", "AdaptadorMNI",
+    "AdaptadorBase", "ResultadoVarredura", "AdaptadorMNI", "AdaptadorDataJud",
     "AdaptadorPJe", "AdaptadorEproc", "AdaptadorEsaj", "AdaptadorProjudi",
     "ADAPTADORES_HTML",
 ]
