@@ -40,7 +40,14 @@ from core.adaptadores import (
 )
 from core.certificado import ErroCertificado, carregar_dotenv, obter_credencial, validar_certificado
 from core.classificador import Classificador, ordenar_por_urgencia
-from core.modelo import Movimentacao, Processo, normalizar_cnj
+from core.modelo import (
+    Movimentacao,
+    Processo,
+    codigo_cnj,
+    formatar_cnj,
+    inferir_tribunal,
+    normalizar_cnj,
+)
 from core.prazos import RAMO_ESTADUAL, RAMO_FEDERAL, CalendarioForense, carregar_feriados_extras
 from core.relatorio import gerar_markdown, salvar
 from core.sessao import SessaoTribunal
@@ -515,6 +522,137 @@ def _resolver_datas_relativas(dados: dict[str, Any]) -> dict[str, Any]:
     return percorrer(dados)
 
 
+def cmd_importar_processos(caminho: str) -> int:
+    """Monta relatorio_prazos.json a partir de uma lista de numeros CNJ.
+
+    Aceita .txt com um numero por linha ou .csv com
+    numero;cliente;beneficio;observacao. Na pratica aceita qualquer texto:
+    procura numeros CNJ onde estiverem, entao colar a lista de um relatorio
+    do PJe tambem funciona.
+
+    O tribunal NAO precisa ser informado - ele sai do proprio numero.
+    """
+    origem = Path(caminho)
+    if not origem.exists():
+        print(f"Arquivo nao encontrado: {origem}")
+        return 1
+
+    tribunais = carregar_tribunais()
+    texto = origem.read_text(encoding="utf-8", errors="replace")
+
+    import csv
+    import io
+    import re
+
+    RE_CNJ = re.compile(r"\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}")
+
+    extras: dict[str, dict[str, str]] = {}
+    if origem.suffix.lower() == ".csv":
+        # Le as colunas opcionais, sem exigir cabecalho nem ordem fixa.
+        for linha in csv.reader(io.StringIO(texto), delimiter=";"):
+            if not linha:
+                continue
+            achado = RE_CNJ.search(linha[0])
+            if not achado:
+                continue
+            campos = [c.strip() for c in linha[1:]] + ["", "", ""]
+            extras[normalizar_cnj(achado.group(0))] = {
+                "cliente": campos[0], "beneficio": campos[1], "observacao": campos[2],
+            }
+
+    vistos: set[str] = set()
+    processos: list[dict[str, Any]] = []
+    ambiguos: list[tuple[str, list[str]]] = []
+    sem_tribunal: list[str] = []
+
+    for achado in RE_CNJ.finditer(texto):
+        numero = normalizar_cnj(achado.group(0))
+        if numero in vistos:
+            continue
+        vistos.add(numero)
+
+        candidatos = inferir_tribunal(numero, tribunais)
+        if not candidatos:
+            sem_tribunal.append(formatar_cnj(numero))
+            continue
+        if len(candidatos) > 1:
+            ambiguos.append((formatar_cnj(numero), candidatos))
+
+        registro = {
+            "numero": formatar_cnj(numero),
+            "tribunal_id": candidatos[0],
+            "cliente": "",
+            "orgao_julgador": "",
+            "classe": "",
+            "beneficio": "",
+            "observacao": "",
+        }
+        registro.update({k: v for k, v in extras.get(numero, {}).items() if v})
+        if len(candidatos) > 1:
+            registro["tribunal_alternativo"] = candidatos[1:]
+        processos.append(registro)
+
+    if not processos:
+        print(f"Nenhum numero de processo valido encontrado em {origem.name}.")
+        print("O numero precisa estar no formato CNJ: 0000000-00.0000.0.00.0000")
+        return 1
+
+    if ENTRADA_PROCESSOS.exists():
+        reserva = ENTRADA_PROCESSOS.with_suffix(".json.anterior")
+        reserva.write_text(ENTRADA_PROCESSOS.read_text(encoding="utf-8"), encoding="utf-8")
+        print(f"Cadastro anterior guardado em {reserva.name}")
+
+    ENTRADA_PROCESSOS.write_text(
+        json.dumps(
+            {
+                "_comentario": [
+                    f"Gerado a partir de {origem.name} em "
+                    f"{datetime.now().strftime('%d/%m/%Y %H:%M')}.",
+                    "O tribunal de cada processo foi deduzido do proprio numero CNJ.",
+                    "Preencha 'cliente' e 'beneficio' quando quiser ver esses dados",
+                    "no relatorio de prazos - sao opcionais.",
+                ],
+                "processos": processos,
+            },
+            ensure_ascii=False, indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    por_tribunal: dict[str, int] = {}
+    for p in processos:
+        por_tribunal[p["tribunal_id"]] = por_tribunal.get(p["tribunal_id"], 0) + 1
+
+    print(f"\n{len(processos)} processos gravados em {ENTRADA_PROCESSOS.name}\n")
+    print("Distribuicao por tribunal:")
+    for tid, quantos in sorted(por_tribunal.items(), key=lambda kv: -kv[1]):
+        print(f"  {quantos:>4}  {tid}")
+
+    if ambiguos:
+        print(
+            f"\n{len(ambiguos)} processo(s) em tribunal que roda DOIS sistemas.\n"
+            "Deixei no primeiro. Isso nao afeta a varredura pelo DataJud, que usa\n"
+            "o mesmo indice para os dois; so importa se um dia usar MNI ou raspagem:"
+        )
+        for numero, candidatos in ambiguos[:8]:
+            print(f"  {numero} -> {candidatos[0]}  (alternativa: {', '.join(candidatos[1:])})")
+        if len(ambiguos) > 8:
+            print(f"  ... e mais {len(ambiguos) - 8}")
+
+    if sem_tribunal:
+        print(
+            f"\n{len(sem_tribunal)} numero(s) de tribunal FORA dos 26 cadastrados "
+            "- ficaram de fora:"
+        )
+        for numero in sem_tribunal[:8]:
+            print(f"  {numero}  (codigo {codigo_cnj(numero)})")
+        if len(sem_tribunal) > 8:
+            print(f"  ... e mais {len(sem_tribunal) - 8}")
+
+    print("\nConfira o arquivo e rode:  python varredura_tribunais.py --fonte datajud")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         prog="varredura_tribunais.py",
@@ -536,6 +674,8 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--validar-certificado", action="store_true", help="confere titular e validade do .pfx")
     g.add_argument("--testar-conectividade", action="store_true", help="testa portais e endpoints MNI")
     g.add_argument("--capturar-html", metavar="ID", help="salva o HTML logado para mapear seletores")
+    g.add_argument("--importar-processos", metavar="ARQUIVO",
+                   help="monta relatorio_prazos.json de uma lista de numeros CNJ")
     g.add_argument("--instalar-cron", action="store_true", help="agenda 05:00, de segunda a sexta")
     g.add_argument("--remover-cron", action="store_true", help="remove o agendamento")
     g.add_argument("--status-cron", action="store_true", help="mostra o agendamento instalado")
@@ -568,6 +708,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_testar_conectividade(args)
         if args.capturar_html:
             return cmd_capturar_html(args)
+        if args.importar_processos:
+            return cmd_importar_processos(args.importar_processos)
 
         # Varredura completa.
         inicio = datetime.now()

@@ -10,6 +10,8 @@
     "  sistema        - pje | eproc | esaj | projudi (define qual adaptador roda)",
     "  alias_datajud - indice do tribunal na API publica do DataJud (CNJ).",
     "                   Essa via NAO exige login nem certificado.",
+    "  codigo_cnj    - 'J.TR' do numero CNJ, usado para descobrir o tribunal",
+    "                   automaticamente a partir do numero do processo.",
     "  url_base       - URL informada pela usuaria",
     "  endpoint_mni   - endpoint SOAP do MNI 2.2.2 (CNJ). MONTADO PELO PADRAO DE CADA",
     "                   SISTEMA E **NAO VERIFICADO** - rode 'python3 varredura_tribunais.py",
@@ -39,12 +41,13 @@
         "RR",
         "TO"
       ],
+      "codigo_cnj": "4.01",
       "grau": 1,
       "sistema": "pje",
       "url_base": "https://pje1g.trf1.jus.br/pje/",
       "alias_datajud": "api_publica_trf1",
       "endpoint_mni": "https://pje1g.trf1.jus.br/pje/intercomunicacao",
-      "mni_verificado": false,
+      "mni_verificado": true,
       "secoes": [],
       "ativo": true
     },
@@ -54,6 +57,7 @@
       "uf": [
         "RJ"
       ],
+      "codigo_cnj": "4.02",
       "grau": 1,
       "sistema": "eproc",
       "url_base": "https://eproc.jfrj.jus.br/eproc/",
@@ -69,6 +73,7 @@
       "uf": [
         "ES"
       ],
+      "codigo_cnj": "4.02",
       "grau": 1,
       "sistema": "eproc",
       "url_base": "https://eproc.jfes.jus.br/",
@@ -85,6 +90,7 @@
         "SP",
         "MS"
       ],
+      "codigo_cnj": "4.03",
       "grau": 1,
       "sistema": "pje",
       "url_base": "https://pje1g.trf3.jus.br",
@@ -100,6 +106,7 @@
       "uf": [
         "SC"
       ],
+      "codigo_cnj": "4.04",
       "grau": 1,
       "sistema": "eproc",
       "url_base": "https://eproc.jfsc.jus.br/eprocV2/",
@@ -115,6 +122,7 @@
       "uf": [
         "PR"
       ],
+      "codigo_cnj": "4.04",
       "grau": 1,
       "sistema": "eproc",
       "url_base": "https://eproc.jfpr.jus.br",
@@ -135,12 +143,13 @@
         "RN",
         "SE"
       ],
+      "codigo_cnj": "4.05",
       "grau": 1,
       "sistema": "pje",
       "url_base": "https://pje1g.trf5.jus.br/pje/",
       "alias_datajud": "api_publica_trf5",
       "endpoint_mni": "https://pje1g.trf5.jus.br/pje/intercomunicacao",
-      "mni_verificado": false,
+      "mni_verificado": true,
       "secoes": [],
       "ativo": true
     },
@@ -150,6 +159,7 @@
       "uf": [
         "MG"
       ],
+      "codigo_cnj": "4.06",
       "grau": 1,
       "sistema": "eproc",
       "url_base": "https://eproc1g.trf6.jus.br/",
@@ -165,6 +175,7 @@
       "uf": [
         "GO"
       ],
+      "codigo_cnj": "8.09",
       "grau": 1,
       "sistema": "projudi",
       "url_base": "https://projudi.tjgo.jus.br/",
@@ -180,12 +191,13 @@
       "uf": [
         "PA"
       ],
+      "codigo_cnj": "8.14",
       "grau": 1,
       "sistema": "pje",
       "url_base": "https://pje.tjpa.jus.br/pje/",
       "alias_datajud": "api_publica_tjpa",
       "endpoint_mni": "https://pje.tjpa.jus.br/pje/intercomunicacao",
-      "mni_verificado": false,
+      "mni_verificado": true,
       "secoes": [],
       "ativo": true
     },
@@ -195,6 +207,7 @@
       "uf": [
         "MG"
       ],
+      "codigo_cnj": "8.13",
       "grau": 1,
       "sistema": "pje",
       "url_base": "https://pje.tjmg.jus.br/pje",
@@ -210,6 +223,7 @@
       "uf": [
         "MA"
       ],
+      "codigo_cnj": "8.10",
       "grau": 1,
       "sistema": "pje",
       "url_base": "https://pje.tjma.jus.br/pje/",
@@ -225,6 +239,7 @@
       "uf": [
         "SP"
       ],
+      "codigo_cnj": "8.26",
       "grau": 1,
       "sistema": "esaj",
       "url_base": "https://esaj.tjsp.jus.br/",
@@ -240,6 +255,7 @@
       "uf": [
         "SP"
       ],
+      "codigo_cnj": "8.26",
       "grau": 1,
       "sistema": "eproc",
       "url_base": "https://eproc1g.tjsp.jus.br/eproc/",
@@ -255,6 +271,7 @@
       "uf": [
         "MT"
       ],
+      "codigo_cnj": "8.11",
       "grau": 1,
       "sistema": "pje",
       "url_base": "https://pje.tjmt.jus.br/pje/",
@@ -270,6 +287,7 @@
       "uf": [
         "PR"
       ],
+      "codigo_cnj": "8.16",
       "grau": 1,
       "sistema": "projudi",
       "url_base": "https://projudi.tjpr.jus.br/projudi/",
@@ -285,12 +303,13 @@
       "uf": [
         "ES"
       ],
+      "codigo_cnj": "8.08",
       "grau": 1,
       "sistema": "pje",
       "url_base": "https://pje.tjes.jus.br/pje",
       "alias_datajud": "api_publica_tjes",
       "endpoint_mni": "https://pje.tjes.jus.br/pje/intercomunicacao",
-      "mni_verificado": false,
+      "mni_verificado": true,
       "secoes": [],
       "ativo": true
     },
@@ -300,6 +319,7 @@
       "uf": [
         "MS"
       ],
+      "codigo_cnj": "8.12",
       "grau": 1,
       "sistema": "esaj",
       "url_base": "https://esaj.tjms.jus.br/",
@@ -315,12 +335,13 @@
       "uf": [
         "RJ"
       ],
+      "codigo_cnj": "8.19",
       "grau": 1,
       "sistema": "pje",
       "url_base": "https://tjrj.pje.jus.br/1g",
       "alias_datajud": "api_publica_tjrj",
       "endpoint_mni": "https://tjrj.pje.jus.br/1g/intercomunicacao",
-      "mni_verificado": false,
+      "mni_verificado": true,
       "secoes": [],
       "ativo": true
     },
@@ -330,6 +351,7 @@
       "uf": [
         "RJ"
       ],
+      "codigo_cnj": "8.19",
       "grau": 1,
       "sistema": "eproc",
       "url_base": "https://eproc1g.tjrj.jus.br/",
@@ -345,6 +367,7 @@
       "uf": [
         "BA"
       ],
+      "codigo_cnj": "8.05",
       "grau": 1,
       "sistema": "pje",
       "url_base": "https://pje.tjba.jus.br/",
@@ -360,12 +383,13 @@
       "uf": [
         "PE"
       ],
+      "codigo_cnj": "8.17",
       "grau": 1,
       "sistema": "pje",
       "url_base": "https://pje.cloud.tjpe.jus.br/1g/",
       "alias_datajud": "api_publica_tjpe",
       "endpoint_mni": "https://pje.cloud.tjpe.jus.br/1g/intercomunicacao",
-      "mni_verificado": false,
+      "mni_verificado": true,
       "secoes": [],
       "ativo": true
     },
@@ -375,6 +399,7 @@
       "uf": [
         "TO"
       ],
+      "codigo_cnj": "8.27",
       "grau": 1,
       "sistema": "eproc",
       "url_base": "https://eproc1.tjto.jus.br/",
@@ -390,6 +415,7 @@
       "uf": [
         "AM"
       ],
+      "codigo_cnj": "8.04",
       "grau": 1,
       "sistema": "projudi",
       "url_base": "https://projudi.tjam.jus.br/projudi/",
@@ -405,6 +431,7 @@
       "uf": [
         "RN"
       ],
+      "codigo_cnj": "8.20",
       "grau": 1,
       "sistema": "pje",
       "url_base": "https://pje1g.tjrn.jus.br/pje",
@@ -420,12 +447,13 @@
       "uf": [
         "CE"
       ],
+      "codigo_cnj": "8.06",
       "grau": 1,
       "sistema": "pje",
       "url_base": "https://pje.tjce.jus.br/pje1grau",
       "alias_datajud": "api_publica_tjce",
       "endpoint_mni": "https://pje.tjce.jus.br/pje1grau/intercomunicacao",
-      "mni_verificado": false,
+      "mni_verificado": true,
       "secoes": [],
       "ativo": true
     }

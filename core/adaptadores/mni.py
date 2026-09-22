@@ -236,11 +236,24 @@ class AdaptadorMNI(AdaptadorBase):
             return False, diagnostico
         try:
             resp = self.sessao.get(url)
-            corpo = resp.text[:4000].lower()
-            if "wsdl" in corpo and ("intercomunicacao" in corpo or "consultarprocesso" in corpo):
-                return True, f"WSDL MNI respondeu ({diagnostico})"
+            corpo = resp.text.lower()
+
+            # Um WSDL se identifica pela definicao de servico, nao pela palavra
+            # "wsdl" no comeco do arquivo: varios tribunais servem o documento
+            # com prefixo de namespace diferente ou precedido de cabecalho XML
+            # longo. Olhar so os primeiros 4000 caracteres recusava WSDL valido.
+            e_wsdl = ("<wsdl:definitions" in corpo or "<definitions" in corpo
+                      or "wsdl:portType".lower() in corpo or "<soap:address" in corpo)
+            do_mni = "intercomunicacao" in corpo or "consultarprocesso" in corpo
+
+            if e_wsdl and do_mni:
+                return True, f"WSDL do MNI ({diagnostico})"
+            if e_wsdl:
+                return False, "E um WSDL, mas nao expoe o MNI"
+            if "login" in corpo or "<html" in corpo:
+                return False, "Devolveu pagina HTML, nao WSDL"
             if resp.status_code == 200:
-                return False, f"Respondeu, mas nao parece WSDL do MNI ({diagnostico})"
+                return False, "Respondeu, mas nao e WSDL"
             return False, diagnostico
         except Exception as exc:
             return False, f"{type(exc).__name__}: {str(exc)[:120]}"

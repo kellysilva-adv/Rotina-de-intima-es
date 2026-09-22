@@ -138,3 +138,39 @@ class PrazoCalculado:
             "confianca": self.confianca,
             "alertas": self.alertas,
         }
+
+
+# ---------------------------------------------------------------------------
+# Descoberta do tribunal a partir do proprio numero do processo
+# ---------------------------------------------------------------------------
+#
+# O numero CNJ e NNNNNNN-DD.AAAA.J.TR.OOOO, e as posicoes J e TR ja dizem de
+# que tribunal o processo e. Isso poupa a advogada de preencher o tribunal
+# processo a processo - trabalho manual que so serve para gerar erro de
+# digitacao num cadastro de centenas de linhas.
+
+def segmento_e_tribunal(numero: str) -> tuple[str, str]:
+    """Devolve ('J', 'TR') do numero CNJ. ('', '') se o numero for invalido."""
+    d = normalizar_cnj(numero)
+    if len(d) != 20:
+        return "", ""
+    return d[13], d[14:16]
+
+
+def codigo_cnj(numero: str) -> str:
+    """Devolve 'J.TR' - ex.: '4.01' para o TRF1, '8.09' para o TJGO."""
+    j, tr = segmento_e_tribunal(numero)
+    return f"{j}.{tr}" if j else ""
+
+
+def inferir_tribunal(numero: str, tribunais: list[dict]) -> list[str]:
+    """Lista os ids de tribunal compativeis com o numero informado.
+
+    Devolve mais de um quando o mesmo tribunal roda dois sistemas (o TJSP tem
+    e-SAJ e eproc; o TJRJ tem PJe e eproc) ou quando a regiao federal atende
+    mais de uma secao judiciaria (TRF2 = RJ e ES; TRF4 = SC e PR).
+    """
+    codigo = codigo_cnj(numero)
+    if not codigo:
+        return []
+    return [t["id"] for t in tribunais if t.get("codigo_cnj") == codigo]

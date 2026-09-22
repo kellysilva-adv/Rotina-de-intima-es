@@ -220,29 +220,45 @@ class AdaptadorDataJud(AdaptadorBase):
 
     # ------------------------------------------------------------ utilitario
 
-    def testar(self) -> tuple[bool, str]:
-        """Confere se o indice do tribunal responde com a chave configurada."""
+    def testar(self, tentativas: int = 2) -> tuple[bool, str]:
+        """Confere se o indice do tribunal responde com a chave configurada.
+
+        Tenta duas vezes por padrao. Os 26 tribunais batem no MESMO host, entao
+        uma queda momentanea derruba tribunais isolados e da a impressao falsa
+        de que aquele indice nao existe - foi exatamente o que aconteceu na
+        primeira varredura de teste, em que dois cadastros que compartilham o
+        mesmo alias deram resultados opostos.
+        """
         if not self.alias:
             return False, "sem alias_datajud"
-        try:
-            consulta = {"size": 0, "query": {"match_all": {}}}
-            resposta = self.sessao.post(
-                self.endpoint, data=json.dumps(consulta).encode("utf-8"),
-                headers=self._cabecalhos(),
-            )
-            if resposta.status_code == 401:
-                return False, "HTTP 401 - chave publica invalida ou trocada pelo CNJ"
-            if resposta.status_code == 404:
-                return False, f"HTTP 404 - alias '{self.alias}' nao existe"
-            if resposta.status_code >= 400:
-                return False, f"HTTP {resposta.status_code}"
-            total = resposta.json().get("hits", {}).get("total", {})
-            quantidade = total.get("value") if isinstance(total, dict) else total
-            return True, f"OK - indice com {quantidade:,} processos".replace(",", ".")
-        except Exception as exc:
-            nome = type(exc).__name__
-            if "Proxy" in nome:
-                return False, "Bloqueado pelo proxy da rede"
-            if "Connection" in nome or "Timeout" in nome:
-                return False, "Sem conexao com api-publica.datajud.cnj.jus.br"
-            return False, f"{nome}: {str(exc)[:100]}"
+
+        ultimo_erro = ""
+        for tentativa in range(max(1, tentativas)):
+            try:
+                # track_total_hits: sem ele o Elasticsearch para de contar em
+                # 10.000 e devolve esse numero para todo indice, o que parece
+                # um valor inventado no relatorio.
+                consulta = {"size": 0, "track_total_hits": True, "query": {"match_all": {}}}
+                resposta = self.sessao.post(
+                    self.endpoint, data=json.dumps(consulta).encode("utf-8"),
+                    headers=self._cabecalhos(),
+                )
+                if resposta.status_code == 401:
+                    return False, "HTTP 401 - chave publica invalida ou trocada pelo CNJ"
+                if resposta.status_code == 404:
+                    return False, f"HTTP 404 - alias '{self.alias}' nao existe"
+                if resposta.status_code >= 400:
+                    return False, f"HTTP {resposta.status_code}"
+                total = resposta.json().get("hits", {}).get("total", {})
+                quantidade = total.get("value") if isinstance(total, dict) else total
+                sufixo = " (2a tentativa)" if tentativa else ""
+                return True, f"{quantidade:,} processos".replace(",", ".") + sufixo
+            except Exception as exc:
+                nome = type(exc).__name__
+                if "Proxy" in nome:
+                    return False, "Bloqueado pelo proxy da rede"
+                if not ("Connection" in nome or "Timeout" in nome):
+                    return False, f"{nome}: {str(exc)[:100]}"
+                ultimo_erro = "Sem conexao com api-publica.datajud.cnj.jus.br"
+
+        return False, ultimo_erro + " (2 tentativas)"

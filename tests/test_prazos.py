@@ -225,3 +225,74 @@ class TestModelo(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestInferenciaDeTribunal(unittest.TestCase):
+    """O numero CNJ ja diz o tribunal - conferir que a leitura esta certa."""
+
+    @classmethod
+    def setUpClass(cls):
+        import json
+        from core.modelo import codigo_cnj, inferir_tribunal
+        cls.codigo_cnj = staticmethod(codigo_cnj)
+        cls.inferir = staticmethod(inferir_tribunal)
+        cls.tribunais = json.loads(
+            (RAIZ / "config" / "tribunais.json").read_text(encoding="utf-8")
+        )["tribunais"]
+
+    def test_le_segmento_e_tribunal(self):
+        self.assertEqual(self.codigo_cnj("5001234-56.2024.4.01.3600"), "4.01")
+        self.assertEqual(self.codigo_cnj("0011223-34.2024.8.09.0101"), "8.09")
+        self.assertEqual(self.codigo_cnj("1002345-67.2024.8.26.0100"), "8.26")
+
+    def test_numero_sem_formatacao_tambem_funciona(self):
+        self.assertEqual(self.codigo_cnj("50012345620244013600"), "4.01")
+
+    def test_numero_invalido_nao_inventa_tribunal(self):
+        self.assertEqual(self.codigo_cnj("123"), "")
+        self.assertEqual(self.inferir("123", self.tribunais), [])
+
+    def test_justica_federal(self):
+        self.assertEqual(self.inferir("5001234-56.2024.4.01.3600", self.tribunais), ["trf1"])
+        self.assertEqual(self.inferir("5001234-56.2024.4.03.6100", self.tribunais), ["trf3"])
+
+    def test_justica_estadual(self):
+        casos = {
+            "8.09": "tjgo", "8.13": "tjmg", "8.05": "tjba",
+            "8.17": "tjpe", "8.06": "tjce", "8.27": "tjto",
+        }
+        for codigo, esperado in casos.items():
+            j, tr = codigo.split(".")
+            numero = f"0011223342024{j}{tr}0101"
+            self.assertIn(esperado, self.inferir(numero, self.tribunais), numero)
+
+    def test_tribunal_com_dois_sistemas_devolve_os_dois(self):
+        self.assertEqual(
+            sorted(self.inferir("1002345-67.2024.8.26.0100", self.tribunais)),
+            ["tjsp_eproc", "tjsp_esaj"],
+        )
+        self.assertEqual(
+            sorted(self.inferir("0801234-56.2024.8.19.0001", self.tribunais)),
+            ["tjrj_eproc", "tjrj_pje"],
+        )
+
+    def test_regiao_federal_com_duas_secoes(self):
+        # TRF2 atende RJ e ES; TRF4 atende SC e PR.
+        self.assertEqual(
+            sorted(self.inferir("5001234-56.2024.4.02.5101", self.tribunais)), ["jfes", "jfrj"]
+        )
+        self.assertEqual(
+            sorted(self.inferir("5001234-56.2024.4.04.7200", self.tribunais)), ["jfpr", "jfsc"]
+        )
+
+    def test_tribunal_fora_dos_26_nao_e_forcado(self):
+        # 5.03 e o TRT da 3a Regiao - trabalhista, fora do escopo.
+        self.assertEqual(self.inferir("1234567-89.2024.5.03.0001", self.tribunais), [])
+
+    def test_todo_tribunal_cadastrado_tem_codigo(self):
+        sem = [t["id"] for t in self.tribunais if not t.get("codigo_cnj")]
+        self.assertEqual(sem, [], f"tribunais sem codigo_cnj: {sem}")
+
+    def test_todo_tribunal_cadastrado_tem_alias_datajud(self):
+        sem = [t["id"] for t in self.tribunais if not t.get("alias_datajud")]
+        self.assertEqual(sem, [], f"tribunais sem alias_datajud: {sem}")
