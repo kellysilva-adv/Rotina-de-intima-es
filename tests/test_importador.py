@@ -1,4 +1,9 @@
-"""Testes do importador da planilha de controle do escritorio."""
+"""Testes do importador da planilha de controle do escritorio.
+
+A planilha de exemplo aqui e FICTICIA de ponta a ponta, inclusive a senha
+do teste de descarte de credencial. Nunca copiar valor real de planilha de
+cliente para dentro de teste: o teste vai para o controle de versao.
+"""
 
 import json
 import sys
@@ -23,7 +28,7 @@ PLANILHA = """| CLIENTES ONLINE - PREVIDENCIARIO |  |  |  |  |
 | 1018795-96.2024.4.01.3600 | ELISA EXEMPLO | Contestacao apresentada - IMPUGNAR | | OK |
 | [merged] TJSP ESAJ (Verificado) |  |  |  |  |
 | 1019277-49.2024.8.26.0032 | JOSE EXEMPLO | Aguardando | | OK |
-| 0002141-80.2025.8.16.0038 | ANDREIA EXEMPLO | Perito inerte | senha: Kelly@2412 | OK |
+| 0002141-80.2025.8.16.0038 | ANDREIA EXEMPLO | Perito inerte | senha: SENHA-FICTICIA-NAO-USE | OK |
 | 1234567-89.2024.4.01.9999 | NUMERO ERRADO | - | | |
 """
 
@@ -60,7 +65,7 @@ class TestImportador(unittest.TestCase):
 
     def test_senha_nao_entra_no_cadastro(self):
         despejo = json.dumps(self.r.processos, ensure_ascii=False)
-        self.assertNotIn("Kelly@2412", despejo)
+        self.assertNotIn("SENHA-FICTICIA-NAO-USE", despejo)
         self.assertEqual(len(self.r.senhas_descartadas), 1)
 
     def test_captura_cliente_e_fase(self):
