@@ -71,7 +71,9 @@ def configurar_log(silencioso: bool) -> None:
     if not silencioso:
         manipuladores.append(logging.StreamHandler(sys.stdout))
     logging.basicConfig(level=logging.INFO, format=formato, handlers=manipuladores, force=True)
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    # Os avisos de retry do urllib3 sao uma linha por tentativa por endpoint:
+    # em 26 tribunais isso soterra a tabela do relatorio.
+    logging.getLogger("urllib3").setLevel(logging.ERROR)
 
 
 # ------------------------------------------------------------------ carregar
@@ -369,12 +371,16 @@ def cmd_testar_conectividade(args: argparse.Namespace) -> int:
 
     largura = max(len(t["id"]) for t in tribunais)
     ok_portal = ok_mni = ok_datajud = 0
+    linhas_resultado: list[dict[str, Any]] = []
 
-    print(f"\n{'TRIBUNAL'.ljust(largura)}  {'DATAJUD (sem login)':<36}  "
-          f"{'MNI (login/senha)':<30}  PORTAL")
-    print("-" * (largura + 92))
+    print(f"\nTestando {len(tribunais)} tribunais em 3 vias, {args.timeout}s de espera por "
+          f"requisicao.\nEndpoint que nao responde consome o tempo inteiro - pode levar "
+          f"alguns minutos.\n")
+    print(f"{'TRIBUNAL'.ljust(largura)}  {'DATAJUD (sem login)':<36}  "
+          f"{'MNI (login/senha)':<30}  PORTAL", flush=True)
+    print("-" * (largura + 92), flush=True)
 
-    with SessaoTribunal(credencial, timeout=args.timeout) as sessao:
+    with SessaoTribunal(credencial, timeout=args.timeout, tentativas=0) as sessao:
         for tribunal in tribunais:
             dj_ok, diag_dj = AdaptadorDataJud(tribunal, sessao, chave_datajud).testar()
             ok_datajud += dj_ok
@@ -382,16 +388,37 @@ def cmd_testar_conectividade(args: argparse.Namespace) -> int:
             ok_mni += mni_ok
             alcancavel, diag_portal = sessao.testar(tribunal["url_base"])
             ok_portal += alcancavel
+            linhas_resultado.append({
+                "id": tribunal["id"], "nome": tribunal["nome"], "sistema": tribunal["sistema"],
+                "datajud": {"ok": dj_ok, "detalhe": diag_dj},
+                "mni": {"ok": mni_ok, "detalhe": diag_mni, "endpoint": tribunal.get("endpoint_mni", "")},
+                "portal": {"ok": alcancavel, "detalhe": diag_portal, "url": tribunal["url_base"]},
+            })
             print(
                 f"{tribunal['id'].ljust(largura)}  "
                 f"{'OK  ' if dj_ok else 'FALHA'} {diag_dj[:30]:<30}  "
                 f"{'OK  ' if mni_ok else 'FALHA'} {diag_mni[:24]:<24}  "
-                f"{'OK' if alcancavel else 'FALHA'}"
+                f"{'OK' if alcancavel else 'FALHA'}",
+                flush=True,
             )
 
     total = len(tribunais)
     print("-" * (largura + 92))
     print(f"DataJud: {ok_datajud}/{total}  |  MNI: {ok_mni}/{total}  |  Portais: {ok_portal}/{total}")
+
+    # Grava o resultado para a Kelly poder mandar o arquivo em vez de copiar a tela.
+    destino = RAIZ / "dados" / "conectividade.json"
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text(
+        json.dumps(
+            {"testado_em": datetime.now().isoformat(timespec="seconds"),
+             "resumo": {"datajud": ok_datajud, "mni": ok_mni, "portais": ok_portal, "total": total},
+             "tribunais": linhas_resultado},
+            ensure_ascii=False, indent=2,
+        ),
+        encoding="utf-8",
+    )
+    print(f"\nResultado salvo em {destino.relative_to(RAIZ)} - pode me mandar esse arquivo.")
     print(
         "\nCOMO LER ESTE RESULTADO"
         "\n  DataJud OK  -> esse tribunal ja pode ser varrido HOJE, sem certificado e"
@@ -497,7 +524,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--certificado", help="caminho do .pfx (sobrepoe CAMINHO_CERTIFICADO do .env)")
     p.add_argument("--tribunal", action="append", help="limita a varredura a este id (repetivel)")
     p.add_argument("--dias", type=int, default=15, help="janela de movimentacoes, em dias (padrao: 15)")
-    p.add_argument("--timeout", type=int, default=45, help="timeout por requisicao, em segundos")
+    p.add_argument("--timeout", type=int, default=None,
+                   help="timeout por requisicao (padrao: 45s na varredura, 15s no teste)")
     p.add_argument("--silencioso", action="store_true", help="modo cron: sem prompt e sem saida no terminal")
     p.add_argument("--fonte", choices=("mni", "datajud", "html"), default="",
                    help="forca uma unica via de captura (padrao: tenta as tres em ordem)")
@@ -513,6 +541,9 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--status-cron", action="store_true", help="mostra o agendamento instalado")
 
     args = p.parse_args(argv)
+    if args.timeout is None:
+        # 26 tribunais x 3 vias com 45s de espera daria quase uma hora de teste.
+        args.timeout = 15 if args.testar_conectividade else 45
     configurar_log(args.silencioso)
 
     try:

@@ -38,17 +38,21 @@ class SessaoTribunal:
         credencial: CredencialCertificado | None = None,
         timeout: int = 45,
         verificar_tls: bool = True,
+        tentativas: int = 3,
     ) -> None:
         self.credencial = credencial
         self.timeout = timeout
         self.verificar_tls = verificar_tls
+        # No teste de conectividade, repetir um endpoint morto tres vezes com
+        # espera crescente triplica a duracao sem mudar o resultado.
+        self.tentativas = tentativas
         self._ultimo_acesso: dict[str, float] = {}
         self.mtls_ativo = False
         self.sessao = self._montar_sessao()
 
     def _montar_sessao(self) -> requests.Session:
         politica = Retry(
-            total=3,
+            total=self.tentativas,
             backoff_factor=2,          # 2s, 4s, 8s
             status_forcelist=(429, 500, 502, 503, 504),
             allowed_methods=frozenset({"GET", "POST"}),
@@ -116,6 +120,8 @@ class SessaoTribunal:
         try:
             resp = self.get(url, allow_redirects=True)
             return True, f"HTTP {resp.status_code} ({len(resp.content)} bytes)"
+        except requests.exceptions.ProxyError:
+            return False, "Bloqueado pelo proxy da rede"
         except requests.exceptions.SSLError as exc:
             return False, f"Erro TLS: {str(exc)[:120]}"
         except requests.exceptions.ConnectTimeout:

@@ -1,0 +1,49 @@
+{
+  "testado_em": "2026-09-22T17:24:42",
+  "resumo": {
+    "datajud": 0,
+    "mni": 0,
+    "portais": 0,
+    "total": 2
+  },
+  "tribunais": [
+    {
+      "id": "trf1",
+      "nome": "TRF1 - Justica Federal 1a Regiao",
+      "sistema": "pje",
+      "datajud": {
+        "ok": false,
+        "detalhe": "Bloqueado pelo proxy da rede"
+      },
+      "mni": {
+        "ok": false,
+        "detalhe": "Bloqueado pelo proxy da rede",
+        "endpoint": "https://pje1g.trf1.jus.br/pje/intercomunicacao"
+      },
+      "portal": {
+        "ok": false,
+        "detalhe": "Bloqueado pelo proxy da rede",
+        "url": "https://pje1g.trf1.jus.br/pje/"
+      }
+    },
+    {
+      "id": "tjgo",
+      "nome": "TJGO - Tribunal de Justica de Goias",
+      "sistema": "projudi",
+      "datajud": {
+        "ok": false,
+        "detalhe": "Bloqueado pelo proxy da rede"
+      },
+      "mni": {
+        "ok": false,
+        "detalhe": "Bloqueado pelo proxy da rede",
+        "endpoint": "https://projudi.tjgo.jus.br/projudi_ws/intercomunicacao"
+      },
+      "portal": {
+        "ok": false,
+        "detalhe": "Bloqueado pelo proxy da rede",
+        "url": "https://projudi.tjgo.jus.br/"
+      }
+    }
+  ]
+}

@@ -240,4 +240,9 @@ class AdaptadorDataJud(AdaptadorBase):
             quantidade = total.get("value") if isinstance(total, dict) else total
             return True, f"OK - indice com {quantidade:,} processos".replace(",", ".")
         except Exception as exc:
-            return False, f"{type(exc).__name__}: {str(exc)[:110]}"
+            nome = type(exc).__name__
+            if "Proxy" in nome:
+                return False, "Bloqueado pelo proxy da rede"
+            if "Connection" in nome or "Timeout" in nome:
+                return False, "Sem conexao com api-publica.datajud.cnj.jus.br"
+            return False, f"{nome}: {str(exc)[:100]}"

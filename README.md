@@ -70,7 +70,7 @@ pip install requests requests-pkcs12 cryptography beautifulsoup4 lxml
 | `--simular` | roda com dados fictícios, sem rede — para ver o formato da saída |
 | `--processar` | só recalcula os prazos a partir do `raw_movimentacoes.json` |
 | `--validar-certificado` | mostra titular, emissor e data de validade do `.pfx` |
-| `--testar-conectividade` | testa, um a um, o portal e o endpoint MNI dos 26 tribunais |
+| `--testar-conectividade` | testa as 3 vias nos 26 tribunais e salva `dados/conectividade.json` |
 | `--capturar-html <id>` | salva o HTML da área logada para mapear os seletores |
 | `--fonte datajud` | força uma via só: `datajud` (sem login), `mni` ou `html` |
 | `--tribunal trf1` | limita a varredura a um tribunal (repetível) |
