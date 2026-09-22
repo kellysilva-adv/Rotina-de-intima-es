@@ -33,9 +33,20 @@ O `testar.bat` acha o Python, instala o que falta e roda o teste de
 conectividade dos 26 tribunais. Não precisa de certificado, senha nem
 linha de comando.
 
-Se der "Python nao encontrado", instale de
-[python.org/downloads](https://www.python.org/downloads/) marcando
-**"Add Python to PATH"** na primeira tela do instalador.
+### Se aparecer "Python nao foi encontrado ... Microsoft Store"
+
+Essa mensagem **não vem de um Python instalado** — vem de um atalho falso que
+o Windows mantém em `WindowsApps` só para abrir a Store. Ele aparece como se
+existisse e falha ao ser executado.
+
+Instale de [python.org/downloads](https://www.python.org/downloads/) marcando
+**"Add python.exe to PATH"** na primeira tela do instalador. Se ainda assim
+não funcionar, desligue os atalhos em *Configurações → Aplicativos →
+Configurações avançadas do aplicativo → Aliases de execução do aplicativo*.
+
+O `testar.bat` valida o interpretador **executando** (exige que ele devolva um
+número conhecido), não apenas perguntando ao Windows se o comando existe — é
+justamente essa pergunta que o atalho falso responde errado.
 
 ---
 
