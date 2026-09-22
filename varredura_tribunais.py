@@ -523,15 +523,13 @@ def _resolver_datas_relativas(dados: dict[str, Any]) -> dict[str, Any]:
 
 
 def cmd_importar_processos(caminho: str) -> int:
-    """Monta relatorio_prazos.json a partir de uma lista de numeros CNJ.
+    """Monta relatorio_prazos.json a partir da planilha de controle.
 
-    Aceita .txt com um numero por linha ou .csv com
-    numero;cliente;beneficio;observacao. Na pratica aceita qualquer texto:
-    procura numeros CNJ onde estiverem, entao colar a lista de um relatorio
-    do PJe tambem funciona.
-
-    O tribunal NAO precisa ser informado - ele sai do proprio numero.
+    Aceita a planilha exportada (tabela), .csv, .txt com um numero por linha
+    ou qualquer texto com numeros CNJ no meio.
     """
+    from core.importador import importar_tabela
+
     origem = Path(caminho)
     if not origem.exists():
         print(f"Arquivo nao encontrado: {origem}")
@@ -539,80 +537,27 @@ def cmd_importar_processos(caminho: str) -> int:
 
     tribunais = carregar_tribunais()
     texto = origem.read_text(encoding="utf-8", errors="replace")
+    r = importar_tabela(texto, tribunais)
 
-    import csv
-    import io
-    import re
-
-    RE_CNJ = re.compile(r"\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}")
-
-    extras: dict[str, dict[str, str]] = {}
-    if origem.suffix.lower() == ".csv":
-        # Le as colunas opcionais, sem exigir cabecalho nem ordem fixa.
-        for linha in csv.reader(io.StringIO(texto), delimiter=";"):
-            if not linha:
-                continue
-            achado = RE_CNJ.search(linha[0])
-            if not achado:
-                continue
-            campos = [c.strip() for c in linha[1:]] + ["", "", ""]
-            extras[normalizar_cnj(achado.group(0))] = {
-                "cliente": campos[0], "beneficio": campos[1], "observacao": campos[2],
-            }
-
-    vistos: set[str] = set()
-    processos: list[dict[str, Any]] = []
-    ambiguos: list[tuple[str, list[str]]] = []
-    sem_tribunal: list[str] = []
-
-    for achado in RE_CNJ.finditer(texto):
-        numero = normalizar_cnj(achado.group(0))
-        if numero in vistos:
-            continue
-        vistos.add(numero)
-
-        candidatos = inferir_tribunal(numero, tribunais)
-        if not candidatos:
-            sem_tribunal.append(formatar_cnj(numero))
-            continue
-        if len(candidatos) > 1:
-            ambiguos.append((formatar_cnj(numero), candidatos))
-
-        registro = {
-            "numero": formatar_cnj(numero),
-            "tribunal_id": candidatos[0],
-            "cliente": "",
-            "orgao_julgador": "",
-            "classe": "",
-            "beneficio": "",
-            "observacao": "",
-        }
-        registro.update({k: v for k, v in extras.get(numero, {}).items() if v})
-        if len(candidatos) > 1:
-            registro["tribunal_alternativo"] = candidatos[1:]
-        processos.append(registro)
-
-    if not processos:
-        print(f"Nenhum numero de processo valido encontrado em {origem.name}.")
-        print("O numero precisa estar no formato CNJ: 0000000-00.0000.0.00.0000")
+    if not r.processos:
+        print(f"Nenhum processo valido encontrado em {origem.name}.")
+        print("Cada linha precisa trazer um numero CNJ: 0000000-00.0000.0.00.0000")
         return 1
 
     if ENTRADA_PROCESSOS.exists():
         reserva = ENTRADA_PROCESSOS.with_suffix(".json.anterior")
         reserva.write_text(ENTRADA_PROCESSOS.read_text(encoding="utf-8"), encoding="utf-8")
-        print(f"Cadastro anterior guardado em {reserva.name}")
+        print(f"Cadastro anterior guardado em {reserva.name}\n")
 
     ENTRADA_PROCESSOS.write_text(
         json.dumps(
             {
                 "_comentario": [
-                    f"Gerado a partir de {origem.name} em "
-                    f"{datetime.now().strftime('%d/%m/%Y %H:%M')}.",
-                    "O tribunal de cada processo foi deduzido do proprio numero CNJ.",
-                    "Preencha 'cliente' e 'beneficio' quando quiser ver esses dados",
-                    "no relatorio de prazos - sao opcionais.",
+                    f"Gerado de {origem.name} em {datetime.now().strftime('%d/%m/%Y %H:%M')}.",
+                    "Tribunal deduzido do numero CNJ; digito verificador conferido.",
+                    "ARQUIVO COM DADO DE CLIENTE - coberto pelo .gitignore, nao versionar.",
                 ],
-                "processos": processos,
+                "processos": r.processos,
             },
             ensure_ascii=False, indent=2,
         ),
@@ -620,36 +565,61 @@ def cmd_importar_processos(caminho: str) -> int:
     )
 
     por_tribunal: dict[str, int] = {}
-    for p in processos:
+    for p in r.processos:
         por_tribunal[p["tribunal_id"]] = por_tribunal.get(p["tribunal_id"], 0) + 1
+    nomes = {t["id"]: t["nome"] for t in tribunais}
 
-    print(f"\n{len(processos)} processos gravados em {ENTRADA_PROCESSOS.name}\n")
-    print("Distribuicao por tribunal:")
+    print(f"{r.total} processos gravados em {ENTRADA_PROCESSOS.name}")
+    if r.duplicados:
+        print(f"{r.duplicados} linha(s) repetida(s) foram unificadas.")
+    print()
+    print(f"{'TRIBUNAL':<12} {'PROCESSOS':>9}   NOME")
+    print("-" * 74)
     for tid, quantos in sorted(por_tribunal.items(), key=lambda kv: -kv[1]):
-        print(f"  {quantos:>4}  {tid}")
+        print(f"{tid:<12} {quantos:>9}   {nomes.get(tid, '')[:44]}")
+    print("-" * 74)
+    print(f"{'TOTAL':<12} {r.total:>9}   em {len(por_tribunal)} tribunais")
 
-    if ambiguos:
+    if r.senhas_descartadas:
         print(
-            f"\n{len(ambiguos)} processo(s) em tribunal que roda DOIS sistemas.\n"
-            "Deixei no primeiro. Isso nao afeta a varredura pelo DataJud, que usa\n"
-            "o mesmo indice para os dois; so importa se um dia usar MNI ou raspagem:"
+            f"\nATENCAO - {len(r.senhas_descartadas)} linha(s) da planilha tinham SENHA "
+            f"escrita (linhas {', '.join(str(n) for n in r.senhas_descartadas[:6])}"
+            f"{'...' if len(r.senhas_descartadas) > 6 else ''}).\n"
+            "O texto foi descartado e NAO entrou no arquivo gerado. Convem tirar da\n"
+            "planilha tambem: ela esta compartilhada por link."
         )
-        for numero, candidatos in ambiguos[:8]:
-            print(f"  {numero} -> {candidatos[0]}  (alternativa: {', '.join(candidatos[1:])})")
-        if len(ambiguos) > 8:
-            print(f"  ... e mais {len(ambiguos) - 8}")
 
-    if sem_tribunal:
+    if r.ambiguos:
         print(
-            f"\n{len(sem_tribunal)} numero(s) de tribunal FORA dos 26 cadastrados "
-            "- ficaram de fora:"
+            f"\n{len(r.ambiguos)} processo(s) em tribunal que roda dois sistemas e sem\n"
+            "pista de qual deles. Ficaram no primeiro - o que nao muda nada na\n"
+            "varredura pelo DataJud, que usa o mesmo indice para ambos:"
         )
-        for numero in sem_tribunal[:8]:
-            print(f"  {numero}  (codigo {codigo_cnj(numero)})")
-        if len(sem_tribunal) > 8:
-            print(f"  ... e mais {len(sem_tribunal) - 8}")
+        for numero, candidatos in r.ambiguos[:6]:
+            print(f"  {numero} -> {candidatos[0]} (ou {', '.join(candidatos[1:])})")
 
-    print("\nConfira o arquivo e rode:  python varredura_tribunais.py --fonte datajud")
+    if r.invalidos:
+        print(f"\n{len(r.invalidos)} numero(s) com digito verificador errado - FORA do cadastro:")
+        for n_linha, bruto in r.invalidos[:6]:
+            print(f"  linha {n_linha}: {bruto}")
+        print("  Confira na planilha: provavelmente e erro de digitacao.")
+
+    if r.secao_desconhecida:
+        print(
+            f"\n{len(r.secao_desconhecida)} processo(s) em secao judiciaria que NAO esta\n"
+            "entre os 26 tribunais que voce listou. Eles continuam sendo varridos,\n"
+            "porque o DataJud usa um indice unico por regiao do TRF - mas o portal\n"
+            "daquela secao nao esta cadastrado:"
+        )
+        for numero, subsecao, atribuido in r.secao_desconhecida[:6]:
+            print(f"  {numero}  subsecao {subsecao}  (cadastrado como {atribuido})")
+
+    if r.fora_do_escopo:
+        print(f"\n{len(r.fora_do_escopo)} processo(s) de tribunal fora dos 26 cadastrados:")
+        for numero, codigo in r.fora_do_escopo[:6]:
+            print(f"  {numero} (codigo {codigo})")
+
+    print("\nProximo passo:  python varredura_tribunais.py --fonte datajud")
     return 0
 
 

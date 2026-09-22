@@ -12,6 +12,8 @@
     "                   Essa via NAO exige login nem certificado.",
     "  codigo_cnj    - 'J.TR' do numero CNJ, usado para descobrir o tribunal",
     "                   automaticamente a partir do numero do processo.",
+    "  subsecoes     - prefixos do codigo de subsecao (OOOO) que pertencem a esta",
+    "                   secao judiciaria, usados para desempatar dentro do TRF.",
     "  url_base       - URL informada pela usuaria",
     "  endpoint_mni   - endpoint SOAP do MNI 2.2.2 (CNJ). MONTADO PELO PADRAO DE CADA",
     "                   SISTEMA E **NAO VERIFICADO** - rode 'python3 varredura_tribunais.py",
@@ -58,6 +60,9 @@
         "RJ"
       ],
       "codigo_cnj": "4.02",
+      "subsecoes": [
+        "51"
+      ],
       "grau": 1,
       "sistema": "eproc",
       "url_base": "https://eproc.jfrj.jus.br/eproc/",
@@ -74,6 +79,9 @@
         "ES"
       ],
       "codigo_cnj": "4.02",
+      "subsecoes": [
+        "50"
+      ],
       "grau": 1,
       "sistema": "eproc",
       "url_base": "https://eproc.jfes.jus.br/",
@@ -107,6 +115,9 @@
         "SC"
       ],
       "codigo_cnj": "4.04",
+      "subsecoes": [
+        "72"
+      ],
       "grau": 1,
       "sistema": "eproc",
       "url_base": "https://eproc.jfsc.jus.br/eprocV2/",
@@ -123,6 +134,9 @@
         "PR"
       ],
       "codigo_cnj": "4.04",
+      "subsecoes": [
+        "70"
+      ],
       "grau": 1,
       "sistema": "eproc",
       "url_base": "https://eproc.jfpr.jus.br",

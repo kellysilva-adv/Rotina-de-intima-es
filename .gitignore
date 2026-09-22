@@ -25,6 +25,8 @@ certificados/
 # DADOS DE CLIENTES - sigilo profissional (EOAB, art. 34, VII)
 # -----------------------------------------------------------------------------
 relatorio_prazos.json
+relatorio_prazos.json.anterior
+*.json.anterior
 raw_movimentacoes.json
 prazos_urgentes_diarios.md
 dados/historico/

@@ -174,3 +174,18 @@ def inferir_tribunal(numero: str, tribunais: list[dict]) -> list[str]:
     if not codigo:
         return []
     return [t["id"] for t in tribunais if t.get("codigo_cnj") == codigo]
+
+
+def digito_verificador_valido(numero: str) -> bool:
+    """Confere o digito verificador do numero CNJ (Res. CNJ 65/2008).
+
+    Regra: NNNNNNN + AAAAJTROOOO + DD tem de deixar resto 1 na divisao por 97.
+
+    Serve para aceitar numero digitado com separador errado sem risco: em vez
+    de confiar no formato, confere-se a aritmetica. Numero inventado ou
+    truncado nao passa.
+    """
+    d = normalizar_cnj(numero)
+    if len(d) != 20:
+        return False
+    return int(d[:7] + d[9:] + d[7:9]) % 97 == 1
