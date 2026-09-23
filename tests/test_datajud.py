@@ -175,3 +175,43 @@ class TestDataJud(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestCustoDaConsultaDeTeste(unittest.TestCase):
+    """O teste de conectividade tem de ser barato.
+
+    Ja usou track_total_hits para exibir o tamanho do acervo, e contar dezenas
+    de milhoes de documentos por indice estourava o tempo: a checagem passou a
+    reprovar tribunal que funcionava. Este teste impede a reincidencia.
+    """
+
+    def test_nao_pede_contagem_total(self):
+        sessao = SessaoFalsa({"hits": {"total": {"value": 0}, "hits": []}})
+        AdaptadorDataJud(TRIBUNAL, sessao).testar()
+        corpo = sessao.chamadas[0]["corpo"]
+        self.assertNotIn("track_total_hits", corpo)
+        self.assertEqual(corpo.get("size"), 0)
+        self.assertEqual(corpo.get("terminate_after"), 1)
+
+    def test_insiste_antes_de_reprovar_por_queda_de_rede(self):
+        """Os 26 tribunais batem no mesmo host: uma piscada derruba varios."""
+        class SessaoInstavel(SessaoFalsa):
+            def post(self, url, data=None, headers=None, **kwargs):
+                self.chamadas.append({"url": url, "corpo": json.loads(data), "headers": headers})
+                if len(self.chamadas) < 3:
+                    raise ConnectionError("queda momentanea")
+                return RespostaFalsa(self.payload)
+
+        sessao = SessaoInstavel({"hits": {"total": {"value": 0}, "hits": []}})
+        ok, detalhe = AdaptadorDataJud(TRIBUNAL, sessao).testar()
+        self.assertTrue(ok, detalhe)
+        self.assertIn("tentativa", detalhe)
+
+    def test_desiste_depois_das_tentativas(self):
+        class SessaoMorta(SessaoFalsa):
+            def post(self, *a, **k):
+                raise ConnectionError("fora do ar")
+
+        ok, detalhe = AdaptadorDataJud(TRIBUNAL, SessaoMorta({})).testar()
+        self.assertFalse(ok)
+        self.assertIn("3 tentativas", detalhe)

@@ -220,7 +220,7 @@ class AdaptadorDataJud(AdaptadorBase):
 
     # ------------------------------------------------------------ utilitario
 
-    def testar(self, tentativas: int = 2) -> tuple[bool, str]:
+    def testar(self, tentativas: int = 3) -> tuple[bool, str]:
         """Confere se o indice do tribunal responde com a chave configurada.
 
         Tenta duas vezes por padrao. Os 26 tribunais batem no MESMO host, entao
@@ -235,10 +235,15 @@ class AdaptadorDataJud(AdaptadorBase):
         ultimo_erro = ""
         for tentativa in range(max(1, tentativas)):
             try:
-                # track_total_hits: sem ele o Elasticsearch para de contar em
-                # 10.000 e devolve esse numero para todo indice, o que parece
-                # um valor inventado no relatorio.
-                consulta = {"size": 0, "track_total_hits": True, "query": {"match_all": {}}}
+                # A consulta e de proposito a mais barata possivel: o teste
+                # so precisa saber se o indice responde com a chave.
+                #
+                # Ja usou track_total_hits aqui, para exibir o tamanho real do
+                # acervo em vez do limite de contagem do Elasticsearch. Ficou
+                # bonito e quebrou o teste: contar 36 milhoes de documentos por
+                # indice estourava o tempo e reprovava tribunal que funciona.
+                # Numero de enfeite nao vale um diagnostico errado.
+                consulta = {"size": 0, "terminate_after": 1, "query": {"match_all": {}}}
                 resposta = self.sessao.post(
                     self.endpoint, data=json.dumps(consulta).encode("utf-8"),
                     headers=self._cabecalhos(),
@@ -249,10 +254,8 @@ class AdaptadorDataJud(AdaptadorBase):
                     return False, f"HTTP 404 - alias '{self.alias}' nao existe"
                 if resposta.status_code >= 400:
                     return False, f"HTTP {resposta.status_code}"
-                total = resposta.json().get("hits", {}).get("total", {})
-                quantidade = total.get("value") if isinstance(total, dict) else total
-                sufixo = " (2a tentativa)" if tentativa else ""
-                return True, f"{quantidade:,} processos".replace(",", ".") + sufixo
+                sufixo = f" ({tentativa + 1}a tentativa)" if tentativa else ""
+                return True, "indice respondeu" + sufixo
             except Exception as exc:
                 nome = type(exc).__name__
                 if "Proxy" in nome:
@@ -261,4 +264,4 @@ class AdaptadorDataJud(AdaptadorBase):
                     return False, f"{nome}: {str(exc)[:100]}"
                 ultimo_erro = "Sem conexao com api-publica.datajud.cnj.jus.br"
 
-        return False, ultimo_erro + " (2 tentativas)"
+        return False, ultimo_erro + f" ({max(1, tentativas)} tentativas)"
