@@ -195,3 +195,201 @@ def salvar(caminho: Path, conteudo: str, historico: Path | None = None) -> None:
         historico.mkdir(parents=True, exist_ok=True)
         datado = historico / f"prazos_{date.today().isoformat()}.md"
         datado.write_text(conteudo, encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# Versao HTML - a que a Kelly realmente abre de manha
+# ---------------------------------------------------------------------------
+#
+# O Markdown serve para o Claude reprocessar e para versionar. Para LER a
+# pauta do dia, um .md no Bloco de Notas e um tijolo de pipes. O HTML abre no
+# navegador com dois cliques, imprime direito e destaca o que esta vencendo.
+
+CSS_RELATORIO = """
+:root {
+  --tinta: #1a1a1a; --fundo: #ffffff; --borda: #d8d8d8; --suave: #f7f7f8;
+  --critica: #b3261e; --critica-fundo: #fdecea;
+  --alta: #b35309; --alta-fundo: #fdf3e7;
+  --media: #8a6d00; --media-fundo: #fdfaeb;
+  --baixa: #46617a; --baixa-fundo: #f1f5f9;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: "Segoe UI", Calibri, system-ui, sans-serif;
+  color: var(--tinta); background: var(--fundo);
+  margin: 0; padding: 24px 16px; line-height: 1.5;
+}
+.folha { max-width: 1180px; margin: 0 auto; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; }
+h2 { font-size: 1.1rem; margin: 32px 0 10px; padding-bottom: 6px;
+     border-bottom: 1px solid var(--borda); }
+.escritorio { color: #555; margin: 0 0 2px; }
+.carimbo { color: #777; font-size: .9rem; margin: 0 0 20px; }
+.resumo { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 20px; }
+.ficha { border: 1px solid var(--borda); border-radius: 8px;
+         padding: 10px 14px; min-width: 116px; background: var(--suave); }
+.ficha .numero { font-size: 1.5rem; font-weight: 700; display: block; line-height: 1.2; }
+.ficha .rotulo { font-size: .78rem; color: #555; text-transform: uppercase;
+                 letter-spacing: .04em; }
+.ficha.critica .numero { color: var(--critica); }
+.ficha.alta .numero { color: var(--alta); }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th { text-align: left; background: var(--suave); border-bottom: 2px solid var(--borda);
+     padding: 9px 10px; font-size: .78rem; text-transform: uppercase;
+     letter-spacing: .04em; color: #444; }
+td { padding: 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+tr:hover td { background: #fafafa; }
+.processo { font-family: Consolas, "Courier New", monospace; font-size: .85rem;
+            white-space: nowrap; }
+.cliente { display: block; color: #666; font-size: .82rem; margin-top: 3px; }
+.tarefa { font-weight: 600; }
+.prazo { white-space: nowrap; font-weight: 600; }
+.selo { display: inline-block; padding: 2px 9px; border-radius: 999px;
+        font-size: .74rem; font-weight: 700; letter-spacing: .03em; }
+.selo.CRITICA { color: var(--critica); background: var(--critica-fundo); }
+.selo.ALTA    { color: var(--alta);    background: var(--alta-fundo); }
+.selo.MEDIA   { color: var(--media);   background: var(--media-fundo); }
+.selo.BAIXA   { color: var(--baixa);   background: var(--baixa-fundo); }
+tr.CRITICA td { background: var(--critica-fundo); }
+tr.CRITICA:hover td { background: #fbe2de; }
+.origem { color: #666; font-size: .82rem; font-style: italic; }
+.aviso { border-left: 3px solid #c9a227; background: #fdfaeb;
+         padding: 12px 16px; margin: 14px 0; border-radius: 0 6px 6px 0; }
+.aviso ul { margin: 6px 0 0; padding-left: 20px; }
+.rodape { margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--borda);
+          color: #666; font-size: .85rem; }
+.vazio { padding: 40px; text-align: center; color: #555; background: var(--suave);
+         border-radius: 8px; }
+@media print {
+  body { padding: 0; font-size: 10pt; }
+  tr.CRITICA td { background: #fdecea !important; -webkit-print-color-adjust: exact; }
+  h2 { page-break-after: avoid; }
+  tr { page-break-inside: avoid; }
+}
+"""
+
+
+def _escapar(texto: str) -> str:
+    return (
+        (texto or "")
+        .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def gerar_html(
+    prazos: list[PrazoCalculado],
+    diagnostico: list[dict[str, Any]] | None = None,
+    data_execucao: datetime | None = None,
+) -> str:
+    agora = data_execucao or datetime.now()
+    ordenados = ordenar_por_urgencia(prazos)
+
+    contagem = {u: 0 for u in MARCADOR}
+    for p in ordenados:
+        contagem[p.urgencia] = contagem.get(p.urgencia, 0) + 1
+    vencidos = sum(
+        1 for p in ordenados
+        if p.dias_uteis_restantes is not None and p.dias_uteis_restantes < 0
+    )
+
+    partes = [
+        "<!DOCTYPE html>", '<html lang="pt-BR">', "<head>",
+        '<meta charset="utf-8">',
+        '<meta name="viewport" content="width=device-width, initial-scale=1">',
+        f"<title>Prazos urgentes - {agora.strftime('%d/%m/%Y')}</title>",
+        f"<style>{CSS_RELATORIO}</style>", "</head>", "<body>", '<div class="folha">',
+        "<h1>Prazos urgentes</h1>",
+        '<p class="escritorio"><strong>Kelly Silva Advocacia</strong> '
+        "&middot; Direito Previdenciario &middot; Minacu/GO</p>",
+        f'<p class="carimbo">Varredura de {agora.strftime("%d/%m/%Y as %H:%M")}</p>',
+    ]
+
+    fichas = [("Prazos", len(ordenados), ""), ("Criticos", contagem.get(URGENCIA_CRITICA, 0), "critica"),
+              ("Alta urgencia", contagem.get(URGENCIA_ALTA, 0), "alta")]
+    if vencidos:
+        fichas.append(("Ja vencidos", vencidos, "critica"))
+    partes.append('<div class="resumo">')
+    for rotulo, valor, classe in fichas:
+        partes.append(
+            f'<div class="ficha {classe}"><span class="numero">{valor}</span>'
+            f'<span class="rotulo">{rotulo}</span></div>'
+        )
+    partes.append("</div>")
+
+    if not ordenados:
+        partes.append(
+            '<div class="vazio">Nenhuma movimentacao da parte contraria, do juizo '
+            "ou do Ministerio Publico gerou prazo no periodo varrido.</div>"
+        )
+    else:
+        partes += [
+            "<table><thead><tr>",
+            "<th>N&ordm; do Processo</th><th>Tribunal / Se&ccedil;&atilde;o</th>",
+            "<th>Movimenta&ccedil;&atilde;o (Origem)</th><th>Tarefa a Executar</th>",
+            "<th>Prazo Limite</th><th>Urg&ecirc;ncia</th>",
+            "</tr></thead><tbody>",
+        ]
+        for p in ordenados:
+            mov = p.movimentacao
+            secao = mov.secao or mov.orgao_julgador
+            cliente = (
+                f'<span class="cliente">{_escapar(mov.cliente)}</span>' if mov.cliente else ""
+            )
+            prazo = _linha_prazo(p).replace("**", "")
+            partes.append(
+                f'<tr class="{p.urgencia}">'
+                f'<td class="processo">{_escapar(formatar_cnj(mov.processo))}{cliente}</td>'
+                f"<td>{_escapar(mov.tribunal_nome)}<br><small>{_escapar(secao)}</small></td>"
+                f'<td>{_escapar(mov.texto[:220])}<br>'
+                f'<span class="origem">{_escapar(mov.origem)}</span></td>'
+                f'<td class="tarefa">{_escapar(p.tarefa)}</td>'
+                f'<td class="prazo">{_escapar(prazo)}</td>'
+                f'<td><span class="selo {p.urgencia}">{p.urgencia}</span></td>'
+                "</tr>"
+            )
+        partes.append("</tbody></table>")
+
+    agrupados: dict[str, list[str]] = {}
+    for p in ordenados:
+        for alerta in p.alertas:
+            agrupados.setdefault(alerta, []).append(formatar_cnj(p.movimentacao.processo))
+    if agrupados:
+        partes += ["<h2>Pontos a conferir antes de agendar</h2>", '<div class="aviso"><ul>']
+        for alerta, afetados in sorted(agrupados.items(), key=lambda kv: -len(kv[1])):
+            unicos = sorted(set(afetados))
+            sufixo = (
+                f" &mdash; <strong>{len(unicos)} processos</strong>"
+                if len(unicos) > 4 else
+                " &mdash; " + ", ".join(f"<code>{n}</code>" for n in unicos)
+            )
+            partes.append(f"<li>{_escapar(alerta)}{sufixo}</li>")
+        partes.append("</ul></div>")
+
+    if diagnostico:
+        falhos = [d for d in diagnostico if not d.get("sucesso")]
+        ok = len(diagnostico) - len(falhos)
+        partes += [
+            "<h2>Diagnostico da varredura</h2>",
+            f"<p>Tribunais consultados com sucesso: <strong>{ok}/{len(diagnostico)}</strong></p>",
+        ]
+        if falhos:
+            partes.append("<table><thead><tr><th>Tribunal</th><th>Via</th>"
+                          "<th>Problema</th></tr></thead><tbody>")
+            for d in falhos:
+                partes.append(
+                    f"<tr><td>{_escapar(d.get('tribunal_nome', ''))}</td>"
+                    f"<td>{_escapar(d.get('fonte', ''))}</td>"
+                    f"<td>{_escapar(str(d.get('mensagem', ''))[:200])}</td></tr>"
+                )
+            partes.append("</tbody></table>")
+
+    partes += [
+        '<p class="rodape">Relatorio gerado automaticamente das movimentacoes '
+        "capturadas nos sistemas dos tribunais. As datas sao calculadas em dias "
+        "uteis (CPC, arts. 219, 220 e 224) e <strong>nao dispensam a conferencia "
+        "do prazo no proprio processo</strong> &mdash; feriados locais de comarca "
+        "e suspensoes por portaria nao entram no calculo automatico.</p>",
+        "</div>", "</body>", "</html>",
+    ]
+    return "\n".join(partes)

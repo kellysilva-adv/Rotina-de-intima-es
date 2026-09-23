@@ -27,6 +27,7 @@ PASTAS_OBRIGATORIAS = ("core", "config", "tests", "docs")
 ARQUIVOS_OBRIGATORIOS = (
     "varredura_tribunais.py",
     "testar.bat",
+    "varrer.bat",
     "requirements.txt",
     ".env.example",
     ".gitignore",

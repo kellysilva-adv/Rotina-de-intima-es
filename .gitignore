@@ -29,6 +29,7 @@ relatorio_prazos.json.anterior
 *.json.anterior
 raw_movimentacoes.json
 prazos_urgentes_diarios.md
+prazos_urgentes_diarios.html
 dados/historico/
 dados/html/
 dados/prazos_urgentes_diarios.json

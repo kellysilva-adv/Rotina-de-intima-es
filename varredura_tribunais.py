@@ -49,7 +49,7 @@ from core.modelo import (
     normalizar_cnj,
 )
 from core.prazos import RAMO_ESTADUAL, RAMO_FEDERAL, CalendarioForense, carregar_feriados_extras
-from core.relatorio import gerar_markdown, salvar
+from core.relatorio import gerar_html, gerar_markdown, salvar
 from core.sessao import SessaoTribunal
 
 # ------------------------------------------------------------------ caminhos
@@ -61,6 +61,7 @@ CONFIG_SELETORES = RAIZ / "config" / "seletores_acervo.json"
 ENTRADA_PROCESSOS = RAIZ / "relatorio_prazos.json"
 SAIDA_RAW = RAIZ / "raw_movimentacoes.json"
 SAIDA_MD = RAIZ / "prazos_urgentes_diarios.md"
+SAIDA_HTML = RAIZ / "prazos_urgentes_diarios.html"
 SAIDA_JSON = RAIZ / "dados" / "prazos_urgentes_diarios.json"
 HISTORICO = RAIZ / "dados" / "historico"
 DIR_HTML = RAIZ / "dados" / "html"
@@ -321,6 +322,9 @@ def processar(hoje: date | None = None) -> int:
     markdown = gerar_markdown(prazos, diagnostico)
     salvar(SAIDA_MD, markdown, historico=HISTORICO)
 
+    # O HTML e a versao que se le: abre no navegador e imprime direito.
+    SAIDA_HTML.write_text(gerar_html(prazos, diagnostico), encoding="utf-8")
+
     SAIDA_JSON.parent.mkdir(parents=True, exist_ok=True)
     SAIDA_JSON.write_text(
         json.dumps(
@@ -336,7 +340,7 @@ def processar(hoje: date | None = None) -> int:
         encoding="utf-8",
     )
 
-    log.info("Relatorio gravado em %s", SAIDA_MD.name)
+    log.info("Relatorio gravado em %s e %s", SAIDA_HTML.name, SAIDA_MD.name)
     return 0
 
 
