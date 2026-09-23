@@ -12,7 +12,9 @@ from core.classificador import (
     URGENCIA_BAIXA,
     URGENCIA_CRITICA,
     URGENCIA_MEDIA,
+    URGENCIA_VERIFICAR,
     ordenar_por_urgencia,
+    separar,
 )
 from core.modelo import PrazoCalculado, formatar_cnj
 
@@ -21,6 +23,7 @@ MARCADOR = {
     URGENCIA_ALTA: "ALTA",
     URGENCIA_MEDIA: "MEDIA",
     URGENCIA_BAIXA: "BAIXA",
+    URGENCIA_VERIFICAR: "VERIFICAR",
 }
 
 COLUNAS = (
@@ -87,20 +90,22 @@ def montar_tabela(prazos: list[PrazoCalculado]) -> str:
     return "\n".join(linhas)
 
 
-def _resumo(prazos: list[PrazoCalculado]) -> str:
+def _resumo(com_data: list[PrazoCalculado], a_verificar: list[PrazoCalculado]) -> str:
+    """Conta as duas coisas separadamente - juntar seria enganoso."""
     contagem = {u: 0 for u in MARCADOR}
-    for p in prazos:
+    for p in com_data:
         contagem[p.urgencia] = contagem.get(p.urgencia, 0) + 1
     vencidos = sum(
-        1 for p in prazos if p.dias_uteis_restantes is not None and p.dias_uteis_restantes < 0
+        1 for p in com_data if p.dias_uteis_restantes is not None and p.dias_uteis_restantes < 0
     )
     partes = [
-        f"**{len(prazos)}** prazos identificados",
+        f"**{len(com_data)}** prazos com data calculada",
         f"**{contagem.get(URGENCIA_CRITICA, 0)}** críticos",
         f"**{contagem.get(URGENCIA_ALTA, 0)}** de alta urgência",
+        f"**{len(a_verificar)}** movimentações a verificar",
     ]
     if vencidos:
-        partes.append(f"**{vencidos} JÁ VENCIDOS — conferir imediatamente**")
+        partes.insert(1, f"**{vencidos} JÁ VENCIDOS**")
     return " · ".join(partes)
 
 
@@ -120,22 +125,45 @@ def gerar_markdown(
         "",
     ]
 
-    if not ordenados:
+    com_data, a_verificar = separar(ordenados)
+
+    partes += [_resumo(com_data, a_verificar), ""]
+
+    if com_data:
         partes += [
-            "## Nenhum prazo urgente identificado nesta varredura",
+            "## Prazos com data calculada",
             "",
-            "Nenhuma movimentação da parte contrária, do juízo ou do Ministério Público "
-            "gerou prazo no período varrido.",
+            montar_tabela(com_data),
             "",
         ]
     else:
-        partes += [_resumo(ordenados), "", montar_tabela(ordenados), ""]
+        partes += [
+            "## Nenhum prazo com data calculada",
+            "",
+            "Nenhuma movimentação trouxe o teor do ato, então nenhuma data foi "
+            "calculada. Isso **não** significa que não há prazo — significa que a "
+            "fonte consultada não permite afirmar. Veja o bloco abaixo.",
+            "",
+        ]
+
+    if a_verificar:
+        partes += [
+            "## Movimentações a verificar — sem prazo calculado",
+            "",
+            "Estes processos tiveram movimentação da parte contrária, do juízo ou do "
+            "Ministério Público, mas a fonte informou apenas o **nome** do ato, não o "
+            "seu teor. **Nenhuma data foi calculada aqui.** Abra cada processo e "
+            "confira se há prazo.",
+            "",
+            montar_tabela(a_verificar),
+            "",
+        ]
 
     # Alertas: o que o cálculo não garante. Alerta que se repete em vários
     # processos vira UMA linha com a contagem — repetir quarenta vezes vira
     # ruído, e ruído é a forma mais rápida de a advertência deixar de ser lida.
     agrupados: dict[str, list[str]] = {}
-    for p in ordenados:
+    for p in com_data:
         for alerta in p.alertas:
             agrupados.setdefault(alerta, []).append(formatar_cnj(p.movimentacao.processo))
     if agrupados:
@@ -250,6 +278,7 @@ tr:hover td { background: #fafafa; }
 .selo.ALTA    { color: var(--alta);    background: var(--alta-fundo); }
 .selo.MEDIA   { color: var(--media);   background: var(--media-fundo); }
 .selo.BAIXA   { color: var(--baixa);   background: var(--baixa-fundo); }
+.selo.VERIFICAR { color: #5b4a7a; background: #f2eef8; }
 tr.CRITICA td { background: var(--critica-fundo); }
 tr.CRITICA:hover td { background: #fbe2de; }
 .origem { color: #666; font-size: .82rem; font-style: italic; }
@@ -258,6 +287,8 @@ tr.CRITICA:hover td { background: #fbe2de; }
 .aviso ul { margin: 6px 0 0; padding-left: 20px; }
 .rodape { margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--borda);
           color: #666; font-size: .85rem; }
+.nota { border-left: 3px solid #5b4a7a; background: #f6f3fb; padding: 12px 16px;
+        margin: 0 0 14px; border-radius: 0 6px 6px 0; font-size: .9rem; }
 .vazio { padding: 40px; text-align: center; color: #555; background: var(--suave);
          border-radius: 8px; }
 @media print {
@@ -285,11 +316,12 @@ def gerar_html(
     agora = data_execucao or datetime.now()
     ordenados = ordenar_por_urgencia(prazos)
 
+    com_data, a_verificar = separar(ordenados)
     contagem = {u: 0 for u in MARCADOR}
-    for p in ordenados:
+    for p in com_data:
         contagem[p.urgencia] = contagem.get(p.urgencia, 0) + 1
     vencidos = sum(
-        1 for p in ordenados
+        1 for p in com_data
         if p.dias_uteis_restantes is not None and p.dias_uteis_restantes < 0
     )
 
@@ -305,10 +337,14 @@ def gerar_html(
         f'<p class="carimbo">Varredura de {agora.strftime("%d/%m/%Y as %H:%M")}</p>',
     ]
 
-    fichas = [("Prazos", len(ordenados), ""), ("Criticos", contagem.get(URGENCIA_CRITICA, 0), "critica"),
-              ("Alta urgencia", contagem.get(URGENCIA_ALTA, 0), "alta")]
+    fichas = [
+        ("Prazos com data", len(com_data), ""),
+        ("Criticos", contagem.get(URGENCIA_CRITICA, 0), "critica"),
+        ("Alta urgencia", contagem.get(URGENCIA_ALTA, 0), "alta"),
+        ("A verificar", len(a_verificar), ""),
+    ]
     if vencidos:
-        fichas.append(("Ja vencidos", vencidos, "critica"))
+        fichas.insert(1, ("Ja vencidos", vencidos, "critica"))
     partes.append('<div class="resumo">')
     for rotulo, valor, classe in fichas:
         partes.append(
@@ -317,27 +353,22 @@ def gerar_html(
         )
     partes.append("</div>")
 
-    if not ordenados:
-        partes.append(
-            '<div class="vazio">Nenhuma movimentacao da parte contraria, do juizo '
-            "ou do Ministerio Publico gerou prazo no periodo varrido.</div>"
-        )
-    else:
-        partes += [
+    def _tabela(linhas):
+        saida = [
             "<table><thead><tr>",
             "<th>N&ordm; do Processo</th><th>Tribunal / Se&ccedil;&atilde;o</th>",
             "<th>Movimenta&ccedil;&atilde;o (Origem)</th><th>Tarefa a Executar</th>",
             "<th>Prazo Limite</th><th>Urg&ecirc;ncia</th>",
             "</tr></thead><tbody>",
         ]
-        for p in ordenados:
+        for p in linhas:
             mov = p.movimentacao
             secao = mov.secao or mov.orgao_julgador
             cliente = (
                 f'<span class="cliente">{_escapar(mov.cliente)}</span>' if mov.cliente else ""
             )
             prazo = _linha_prazo(p).replace("**", "")
-            partes.append(
+            saida.append(
                 f'<tr class="{p.urgencia}">'
                 f'<td class="processo">{_escapar(formatar_cnj(mov.processo))}{cliente}</td>'
                 f"<td>{_escapar(mov.tribunal_nome)}<br><small>{_escapar(secao)}</small></td>"
@@ -348,10 +379,33 @@ def gerar_html(
                 f'<td><span class="selo {p.urgencia}">{p.urgencia}</span></td>'
                 "</tr>"
             )
-        partes.append("</tbody></table>")
+        saida.append("</tbody></table>")
+        return saida
+
+    if com_data:
+        partes.append("<h2>Prazos com data calculada</h2>")
+        partes += _tabela(com_data)
+    else:
+        partes += [
+            "<h2>Nenhum prazo com data calculada</h2>",
+            '<div class="vazio">Nenhuma movimentacao trouxe o teor do ato, entao '
+            "nenhuma data foi calculada.<br>Isso <strong>nao</strong> significa que nao "
+            "ha prazo &mdash; significa que a fonte consultada nao permite afirmar.</div>",
+        ]
+
+    if a_verificar:
+        partes += [
+            "<h2>Movimenta&ccedil;&otilde;es a verificar &mdash; sem prazo calculado</h2>",
+            '<div class="nota">Estes processos tiveram movimenta&ccedil;&atilde;o da parte '
+            "contr&aacute;ria, do ju&iacute;zo ou do Minist&eacute;rio P&uacute;blico, mas a "
+            "fonte informou apenas o <strong>nome</strong> do ato, n&atilde;o o seu teor. "
+            "<strong>Nenhuma data foi calculada aqui.</strong> Abra cada processo e confira "
+            "se h&aacute; prazo.</div>",
+        ]
+        partes += _tabela(a_verificar)
 
     agrupados: dict[str, list[str]] = {}
-    for p in ordenados:
+    for p in com_data:
         for alerta in p.alertas:
             agrupados.setdefault(alerta, []).append(formatar_cnj(p.movimentacao.processo))
     if agrupados:

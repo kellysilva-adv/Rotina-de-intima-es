@@ -37,6 +37,9 @@ URGENCIA_CRITICA = "CRITICA"
 URGENCIA_ALTA = "ALTA"
 URGENCIA_MEDIA = "MEDIA"
 URGENCIA_BAIXA = "BAIXA"
+# Movimentacao que pode gerar prazo, mas cujo TEOR nao esta disponivel.
+# Nao recebe data: recebe a instrucao de abrir o processo.
+URGENCIA_VERIFICAR = "VERIFICAR"
 
 # "no prazo de 15 (quinze) dias uteis", "prazo: 10 dias", "em 05 dias"
 _RE_PRAZO = re.compile(
@@ -144,6 +147,38 @@ class Classificador:
         fundamento = regra["fundamento"]
 
         explicito = self.prazo_explicito(mov.texto)
+
+        # ------------------------------------------------------------------
+        # REGRA QUE NAO SE QUEBRA: sem o teor do ato, nao se calcula data.
+        #
+        # O DataJud devolve apenas o NOME do movimento - "Ato ordinatorio",
+        # "Despacho", "Intimacao". Esse nome nao diz o que foi determinado nem
+        # a quem: um ato ordinatorio pode ser "abra-se vista ao INSS", que nao
+        # gera prazo nenhum para o escritorio.
+        #
+        # Calcular uma data a partir disso e inventar prazo. Prazo inventado
+        # num relatorio de advogado e pior que relatorio nenhum: enche a pauta
+        # de ruido, e quando o ruido vira rotina o prazo verdadeiro passa
+        # despercebido no meio.
+        #
+        # Entao: havendo so o nome do movimento, a linha sai SEM data, dizendo
+        # para abrir o processo. Data so quando o proprio ato traz o teor -
+        # via complemento do movimento ou prazo escrito por extenso.
+        # ------------------------------------------------------------------
+        tem_teor = bool((mov.complemento or "").strip()) or explicito is not None
+        if not tem_teor:
+            return PrazoCalculado(
+                movimentacao=mov,
+                tarefa=f"ABRIR O PROCESSO e conferir o ato - possivel: {regra['tarefa']}",
+                fundamento="Teor do ato nao disponivel na fonte consultada",
+                dias_prazo=0, contagem=contagem,
+                termo_inicial=None, data_limite=None, dias_uteis_restantes=None,
+                urgencia=URGENCIA_VERIFICAR, confianca="baixa",
+                alertas=[
+                    "A fonte informou apenas o NOME da movimentacao, sem o teor do "
+                    "ato. Nenhum prazo foi calculado - confira no proprio processo."
+                ],
+            )
         if explicito:
             dias_exp, contagem_exp = explicito
             if dias_exp != dias or contagem_exp != contagem:
@@ -220,7 +255,19 @@ ORDEM_URGENCIA = {
     URGENCIA_ALTA: 1,
     URGENCIA_MEDIA: 2,
     URGENCIA_BAIXA: 3,
+    URGENCIA_VERIFICAR: 4,
 }
+
+
+def separar(prazos: list[PrazoCalculado]) -> tuple[list[PrazoCalculado], list[PrazoCalculado]]:
+    """Divide em (prazos com data calculada, movimentacoes a verificar).
+
+    Os dois grupos nao podem aparecer na mesma tabela: um traz data para
+    agendar, o outro traz apenas o aviso de que o processo mexeu.
+    """
+    com_data = [p for p in prazos if p.urgencia != URGENCIA_VERIFICAR]
+    a_verificar = [p for p in prazos if p.urgencia == URGENCIA_VERIFICAR]
+    return ordenar_por_urgencia(com_data), ordenar_por_urgencia(a_verificar)
 
 
 def ordenar_por_urgencia(prazos: list[PrazoCalculado]) -> list[PrazoCalculado]:
